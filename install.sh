@@ -118,8 +118,31 @@ ok "dsh $DSH_VER ($DSH_BIN)"
 
 # ---------- 3. 仓库依赖 ----------
 log "安装项目依赖（npm install）…"
-npm install --no-audit --no-fund
-ok "依赖就绪"
+npm_install() {
+  npm install --no-audit --no-fund
+}
+if npm_install; then
+  ok "依赖就绪"
+else
+  # Electron 二进制从 GitHub 下载，网络不稳时常见失败（Fetch terminated）
+  warn "npm install 失败（常见原因：Electron 二进制下载被网络中断），重试一次…"
+  rm -rf node_modules/electron   # 清掉半成品，强制重下
+  if npm_install; then
+    ok "依赖就绪（重试成功）"
+  else
+    warn "仍失败，改用国内镜像（ELECTRON_MIRROR）重试…"
+    rm -rf node_modules/electron
+    if ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/" npm_install; then
+      ok "依赖就绪（镜像源）"
+    else
+      fail "依赖安装失败。可手动重试："
+      fail "  npm install"
+      fail "或走镜像："
+      fail "  export ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ && npm install"
+      exit 1
+    fi
+  fi
+fi
 
 # ---------- 4. 视觉插件 ----------
 if [ "$INSTALL_PLUGIN" -eq 1 ]; then
