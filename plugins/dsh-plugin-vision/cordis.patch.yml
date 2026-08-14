@@ -1,0 +1,14 @@
+# dsh-plugin-vision — 视觉辅助插件（host plane 工具行）
+#
+# 插入一行 host-plane 工具：注册 `vision_describe` 工具，对部署下所有 agent
+# 会话可见（tools 注册表 global layer）。配置经官方设置 UI 的"插件配置"卡片
+# 修改（apiKey 为 secret 角色，write-only 输入），改后重启引擎生效。
+- insert:
+    - id: vision
+      name: 'dsh-plugin-vision'
+      config:
+        enabled: true
+        baseURL: 'https://api.openai.com/v1'
+        apiKey: ''
+        model: 'gpt-4o-mini'
+        timeoutMs: 60000
