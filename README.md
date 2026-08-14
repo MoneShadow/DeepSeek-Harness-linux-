@@ -28,15 +28,27 @@ DeepSeek Harness 的 Linux 桌面客户端（Electron 外壳）。内嵌官方 [
 
 ## 安装与运行
 
+## 一键安装
+
 ```bash
 git clone <this-repo> && cd dsh-desktop
-npm install                # 仅 devDependencies（运行时零依赖）
+./install.sh               # 全自动：环境检查 → dsh CLI → 依赖 → 视觉插件 → AppImage → 桌面入口 → 图标
+```
+
+分步模式：
+
+```bash
+./install.sh --no-build    # 跳过打包（仅依赖+插件）
+./install.sh --no-plugin   # 跳过插件（仅依赖+构建）
 npm start                  # 开发模式
 npm run selfcheck          # 自检模式（截图+诊断，跑完自动退出）
 npm run selfcheck-crash    # 自检 + 引擎崩溃自愈演练
 npm test                   # 单元测试（28 用例）
-npx electron-builder --linux AppImage   # 打包
+npx electron-builder --linux AppImage   # 手动打包
 ```
+
+> ⚠️ install.sh 首次安装官方 dsh 时执行全局 `npm install -g`，**安装期间请勿中断**
+> （中断会损坏全局依赖树）。若误中断，执行 `npm install -g @deepseek-ai/dsh@next --force` 修复。
 
 ## 视觉助手插件（dsh-plugin-vision）
 
