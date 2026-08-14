@@ -1,6 +1,6 @@
 {
   "name": "dsh-desktop",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "DeepSeek Harness Desktop — 内嵌 cc-tui 终端与会话侧栏的桌面客户端",
   "main": "main.js",
   "author": "mone",

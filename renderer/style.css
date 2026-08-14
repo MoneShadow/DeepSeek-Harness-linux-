@@ -1,0 +1,217 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #111418;
+  --bg2: #161a1f;
+  --border: #262c34;
+  --text: #d7dce2;
+  --text-dim: #7d8794;
+  --accent: #3b82f6;
+  --ok: #22c55e;
+  --warn: #eab308;
+  --danger: #ef4444;
+  --titlebar-h: 38px;
+}
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, "Noto Sans CJK SC", sans-serif;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- 顶栏 ---------- */
+#titlebar {
+  height: var(--titlebar-h);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+  z-index: 20;
+}
+#titlebar .logo { font-size: 15px; }
+#titlebar .app-name { font-weight: 600; font-size: 12.5px; letter-spacing: 0.5px; }
+#titlebar .app-ver { color: var(--text-dim); font-size: 11px; }
+.titlebar-spacer { flex: 1; }
+
+#btn-settings {
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--border);
+  background: #1d232b;
+  color: var(--text-dim);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  position: relative;
+}
+#btn-settings:hover { color: var(--text); background: #252c36; }
+#btn-settings .badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--warn);
+  border: 1.5px solid var(--bg2);
+}
+
+/* ---------- 设置面板 ---------- */
+#settings-panel {
+  position: absolute;
+  top: calc(var(--titlebar-h) + 8px);
+  right: 10px;
+  width: 340px;
+  z-index: 30;
+  background: #1a2028;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+}
+.panel-head button {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+}
+.panel-head button:hover { color: var(--text); }
+
+.panel-body { padding: 12px 14px 14px; }
+.panel-body h3 {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: 600;
+  margin: 10px 0 8px;
+  letter-spacing: 0.5px;
+}
+.panel-body h3:first-child { margin-top: 0; }
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+.row span:last-child { color: var(--text-dim); }
+.row.actions { justify-content: flex-start; gap: 8px; margin-top: 4px; }
+.row.toggles { display: block; margin-bottom: 6px; }
+.row.toggles label { display: flex; align-items: center; gap: 7px; cursor: pointer; color: var(--text-dim); }
+.row.toggles input { accent-color: var(--accent); }
+
+.row button {
+  border: 1px solid var(--border);
+  background: #1d232b;
+  color: var(--text);
+  border-radius: 6px;
+  padding: 5px 14px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.row button:hover { background: #252c36; }
+.row button.primary {
+  background: #17233a;
+  border-color: var(--accent);
+  color: #8ab4ff;
+}
+.row button.primary:hover { background: #1c2c4a; }
+.row button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.message {
+  min-height: 18px;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 4px 0 10px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.message.done { color: var(--ok); }
+.message.error { color: var(--danger); }
+.message.info { color: #8ab4ff; }
+
+/* ---------- 更新横幅 ---------- */
+#update-banner {
+  position: absolute;
+  right: 12px;
+  bottom: 16px;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #1a2028;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 9px 14px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  font-size: 12.5px;
+}
+#update-banner button {
+  border: 1px solid var(--accent);
+  background: #17233a;
+  color: #8ab4ff;
+  border-radius: 5px;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+#update-banner button:hover { background: #1c2c4a; }
+
+/* ---------- Web UI 区 ---------- */
+#web-pane { flex: 1; min-height: 0; position: relative; display: flex; }
+#web-frame { flex: 1; border: none; background: #fff; }
+body.web-ready #web-frame { visibility: visible; }
+body:not(.web-ready) #web-frame { visibility: hidden; }
+body.web-ready #web-loading { display: none; }
+
+#web-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--bg);
+}
+#web-loading .logo { font-size: 40px; }
+#web-loading .spinner {
+  width: 22px;
+  height: 22px;
+  border: 2.5px solid #2a313b;
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#loading-status { color: var(--text-dim); font-size: 13px; }
+#btn-retry {
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: #8ab4ff;
+  border-radius: 6px;
+  padding: 6px 22px;
+  font-size: 13px;
+  cursor: pointer;
+}
+#btn-retry:hover { background: #17233a; }
