@@ -2,3 +2,6 @@ node_modules/
 dist/
 screenshots/
 *.log
+
+# 设置面板截图产物
+.panel-shot.png

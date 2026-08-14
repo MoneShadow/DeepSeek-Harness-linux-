@@ -19,59 +19,78 @@
   <!-- 设置面板 -->
   <div id="settings-panel" hidden>
     <div class="panel-head">
-      <span>设置</span>
+      <span class="panel-title">⚙ 设置</span>
       <button id="btn-close-settings" title="关闭">✕</button>
     </div>
     <div class="panel-body">
-      <section class="upd-section">
-        <h3>DeepSeek Harness 更新</h3>
-        <div class="row"><span>当前版本</span><span id="upd-current">—</span></div>
-        <div class="row"><span>最新版本</span><span id="upd-latest">—</span></div>
-        <div class="row actions">
-          <button id="btn-check-update">检查更新</button>
-          <button id="btn-install-update" class="primary" disabled>立即更新</button>
+      <!-- 卡片：DeepSeek Harness 更新 -->
+      <section class="card">
+        <h3 class="card-title">DeepSeek Harness 更新</h3>
+        <div class="card-group">
+          <div class="kv"><span>当前版本</span><span class="kv-val" id="upd-current">—</span></div>
+          <div class="kv"><span>最新版本</span><span class="kv-val" id="upd-latest">—</span></div>
+        </div>
+        <div class="btn-row">
+          <button id="btn-check-update" class="btn">检查更新</button>
+          <button id="btn-install-update" class="btn primary" disabled>立即更新</button>
         </div>
         <div id="upd-message" class="message"></div>
-        <div class="row toggles">
-          <label><input type="checkbox" id="chk-auto-check" /> 启动时自动检查更新（每 6 小时）</label>
-        </div>
-        <div class="row toggles">
-          <label><input type="checkbox" id="chk-auto-install" /> 发现新版本自动安装</label>
-        </div>
-        <div class="row">
-          <span>更新通道</span>
-          <select id="sel-channel" title="npm 标签：next=预览版（默认），latest=稳定版">
-            <option value="next">next（预览版）</option>
-            <option value="latest">latest（稳定版）</option>
-          </select>
+        <div class="card-group">
+          <label class="toggle"><input type="checkbox" id="chk-auto-check" /> 启动时自动检查更新（每 6 小时）</label>
+          <label class="toggle"><input type="checkbox" id="chk-auto-install" /> 发现新版本自动安装</label>
+          <div class="field">
+            <span class="field-label">更新通道</span>
+            <select id="sel-channel" title="npm 标签：next=预览版（默认），latest=稳定版">
+              <option value="next">next（预览版）</option>
+              <option value="latest">latest（稳定版）</option>
+            </select>
+          </div>
         </div>
       </section>
-      <section class="vision-section">
-        <h3>视觉助手（vision_describe）</h3>
-        <div class="row toggles">
-          <label><input type="checkbox" id="vision-enabled" /> 启用视觉辅助（主模型可调用 vision_describe 描述图片）</label>
+
+      <!-- 卡片：视觉助手 -->
+      <section class="card">
+        <h3 class="card-title">视觉助手 · vision_describe</h3>
+        <label class="toggle"><input type="checkbox" id="vision-enabled" /> 启用视觉辅助（主模型可调用 vision_describe 描述图片）</label>
+        <div class="card-group">
+          <div class="field">
+            <span class="field-label">接口地址</span>
+            <input type="text" id="vision-baseurl" spellcheck="false" placeholder="https://api.openai.com/v1" />
+          </div>
+          <div class="field">
+            <span class="field-label">API 密钥</span>
+            <input type="password" id="vision-apikey" spellcheck="false" placeholder="已设置则留空" />
+          </div>
+          <div class="field">
+            <span class="field-label">模型</span>
+            <input type="text" id="vision-model" spellcheck="false" placeholder="gpt-4o-mini" />
+          </div>
+          <div class="field">
+            <span class="field-label">超时 (ms)</span>
+            <input type="number" id="vision-timeout" placeholder="60000" />
+          </div>
         </div>
-        <div class="row"><span>接口地址</span><input type="text" id="vision-baseurl" spellcheck="false" placeholder="https://api.openai.com/v1" /></div>
-        <div class="row"><span>API 密钥</span><input type="password" id="vision-apikey" spellcheck="false" placeholder="已设置则留空" /></div>
-        <div class="row"><span>模型</span><input type="text" id="vision-model" spellcheck="false" placeholder="gpt-4o-mini" /></div>
-        <div class="row"><span>超时 (ms)</span><input type="number" id="vision-timeout" placeholder="60000" /></div>
-        <div class="row actions">
-          <button id="btn-save-vision" class="primary">保存</button>
+        <div class="btn-row">
+          <button id="btn-save-vision" class="btn primary">保存</button>
           <span id="vision-saved" class="msg-ok" hidden>已保存，即时生效</span>
         </div>
-        <div class="hint">配置写入 ~/.dsh/settings.yaml 的 vision 段，保存后无需重启。密钥不回显；留空保持原值。任何 OpenAI 兼容视觉服务可用（通义千问 qwen-vl / 智谱 glm-4v / OpenAI 等）。</div>
+        <p class="hint">配置写入 ~/.dsh/settings.yaml 的 vision 段，保存后无需重启。密钥不回显；留空保持原值。任何 OpenAI 兼容视觉服务可用（通义千问 qwen-vl / 智谱 glm-4v / OpenAI 等）。</p>
       </section>
-      <section class="log-section">
-        <h3>引擎日志</h3>
+
+      <!-- 卡片：引擎日志 -->
+      <section class="card">
+        <h3 class="card-title">引擎日志</h3>
         <pre id="web-log" class="log-box"></pre>
-        <div class="row actions">
-          <button id="btn-refresh-log">刷新</button>
+        <div class="btn-row">
+          <button id="btn-refresh-log" class="btn">刷新</button>
         </div>
       </section>
-      <section class="about">
-        <h3>关于</h3>
-        <div class="row"><span>应用版本</span><span id="about-app-ver">—</span></div>
-        <div class="row"><span>dsh 路径</span><span id="about-dsh-path">—</span></div>
+
+      <!-- 卡片：关于 -->
+      <section class="card">
+        <h3 class="card-title">关于</h3>
+        <div class="kv"><span>应用版本</span><span class="kv-val" id="about-app-ver">—</span></div>
+        <div class="kv"><span>dsh 路径</span><span class="kv-val mono" id="about-dsh-path">—</span></div>
       </section>
     </div>
   </div>
