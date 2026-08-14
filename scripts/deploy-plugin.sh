@@ -66,11 +66,21 @@ if [ -n "$RUNNING" ]; then
 fi
 
 # 1. 插件实体 → 全局 dsh 依赖树（rsync 同步，含删除，保证与源码一致）
+#    dsh 装在系统目录（sudo npm install -g）时全局树不可写——自动用 sudo，
+#    并保留用户 HOME（sudo 默认把 HOME 指到 /root，profile 路径会错）
 echo "==> 同步插件到全局依赖树：$DSH_NODE_MODULES/$PLUGIN_NAME"
-mkdir -p "$DSH_NODE_MODULES/$PLUGIN_NAME"
-rsync -a --delete \
-  --exclude 'node_modules' --exclude '.git' --exclude 'tests' \
-  "$PLUGIN_SRC/" "$DSH_NODE_MODULES/$PLUGIN_NAME/"
+if [ -w "$DSH_NODE_MODULES" ]; then
+  mkdir -p "$DSH_NODE_MODULES/$PLUGIN_NAME"
+  rsync -a --delete \
+    --exclude 'node_modules' --exclude '.git' --exclude 'tests' \
+    "$PLUGIN_SRC/" "$DSH_NODE_MODULES/$PLUGIN_NAME/"
+else
+  echo "==> 全局依赖树不可写（dsh 装在系统目录），改用 sudo…"
+  sudo env "HOME=$HOME_DIR" mkdir -p "$DSH_NODE_MODULES/$PLUGIN_NAME"
+  sudo env "HOME=$HOME_DIR" rsync -a --delete \
+    --exclude 'node_modules' --exclude '.git' --exclude 'tests' \
+    "$PLUGIN_SRC/" "$DSH_NODE_MODULES/$PLUGIN_NAME/"
+fi
 
 # 2. profile node_modules 软链 → 全局树实体
 echo "==> profile 软链：$PROFILE_NM/$PLUGIN_NAME"
