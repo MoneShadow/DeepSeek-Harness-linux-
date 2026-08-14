@@ -370,7 +370,9 @@ function createWindow() {
     minHeight: 480,
     title: 'DSH Desktop',
     backgroundColor: '#111418',
-    autoHideMenuBar: true,
+    // 无系统标题栏：Wayland/niri 下系统标题栏显示 Electron 默认图标而非应用图标，
+    // 且与自绘顶栏重复；窗口拖动由顶栏 -webkit-app-region: drag 承担
+    frame: false,
     icon: path.join(__dirname, 'assets', 'icon.png'),
     webPreferences: {
       contextIsolation: true,
@@ -405,6 +407,12 @@ function createWindow() {
 // IPC
 // ============================================================================
 ipcMain.handle('app:info', () => ({ version: app.getVersion(), dshPath: DSH_BIN }));
+// 无边框窗口控制（frame: false 后由顶栏按钮接管）
+ipcMain.on('window:minimize', () => { if (win && !win.isDestroyed()) win.minimize(); });
+ipcMain.on('window:toggle-maximize', () => {
+  if (win && !win.isDestroyed()) (win.isMaximized() ? win.unmaximize() : win.maximize());
+});
+ipcMain.on('window:close', () => { if (win && !win.isDestroyed()) win.close(); });
 ipcMain.handle('web:get-state', () => ({ state: webReady ? 'ready' : (webProc ? 'starting' : 'stopped'), url: webUrl }));
 ipcMain.handle('web:get-log', () => ({ lines: logRing.slice(-300) }));
 ipcMain.on('web:retry', () => {

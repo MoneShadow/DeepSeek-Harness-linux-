@@ -5,6 +5,9 @@ const { contextBridge } = require('electron');
 
 contextBridge.exposeInMainWorld('dshDesktop', {
   getAppInfo: () => Promise.resolve({ version: '0.4.0', dshPath: '/home/mone/.local/bin/dsh' }),
+  minimize: () => {},
+  toggleMaximize: () => {},
+  closeWindow: () => {},
   onWebStatus: () => {},
   getWebState: () => Promise.resolve({ state: 'ready', url: 'http://127.0.0.1:1' }),
   retry: () => {},

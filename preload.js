@@ -7,6 +7,11 @@ contextBridge.exposeInMainWorld('dshDesktop', {
   // 应用信息
   getAppInfo: () => ipcRenderer.invoke('app:info'),
 
+  // 窗口控制（无边框窗口）
+  minimize: () => ipcRenderer.send('window:minimize'),
+  toggleMaximize: () => ipcRenderer.send('window:toggle-maximize'),
+  closeWindow: () => ipcRenderer.send('window:close'),
+
   // Web 引擎状态
   onWebStatus: (cb) => ipcRenderer.on('web:status', (_e, s) => cb(s)),
   getWebState: () => ipcRenderer.invoke('web:get-state'),

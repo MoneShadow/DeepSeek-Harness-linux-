@@ -9,11 +9,16 @@
 <body>
   <!-- 顶栏 -->
   <header id="titlebar">
-    <span class="logo">🐳</span>
+    <img class="logo-img" src="./icon.png" alt="DSH" draggable="false" />
     <span class="app-name">DSH Desktop</span>
     <span class="app-ver" id="app-ver"></span>
     <span class="titlebar-spacer"></span>
     <button id="btn-settings" title="设置">⚙ 设置</button>
+    <div class="win-controls">
+      <button id="btn-minimize" title="最小化">─</button>
+      <button id="btn-maximize" title="最大化/还原">□</button>
+      <button id="btn-close" class="win-close" title="关闭">✕</button>
+    </div>
   </header>
 
   <!-- 设置面板 -->
@@ -105,7 +110,7 @@
   <main id="web-pane">
     <iframe id="web-frame" title="DSH Web UI"></iframe>
     <div id="web-loading">
-      <span class="logo">🐳</span>
+      <img class="logo-img big" src="./icon.png" alt="DSH" draggable="false" />
       <div class="spinner"></div>
       <div id="loading-status">正在启动 DSH Web 服务…</div>
       <button id="btn-retry" hidden>重新连接</button>

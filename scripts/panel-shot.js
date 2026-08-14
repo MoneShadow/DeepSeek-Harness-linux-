@@ -18,7 +18,7 @@ const ROOT = path.join(__dirname, '..');
 app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
 app.whenReady().then(() => {
   const win = new BrowserWindow({
-    width: 860, height: 1180, show: true,
+    width: 860, height: 1180, show: true, frame: false,
     backgroundColor: '#111418',
     webPreferences: {
       contextIsolation: true, sandbox: true,

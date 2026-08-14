@@ -127,6 +127,11 @@
   $('sel-channel').addEventListener('change', (e) => api.setChannel(e.target.value));
   $('btn-refresh-log').addEventListener('click', refreshLog);
 
+  // ============ 窗口控制 ============
+  $('btn-minimize').addEventListener('click', () => api.minimize());
+  $('btn-maximize').addEventListener('click', () => api.toggleMaximize());
+  $('btn-close').addEventListener('click', () => api.closeWindow());
+
   // ============ 视觉助手配置 ============
   const visionSaved = document.getElementById('vision-saved');
   let visionKeySet = false;
