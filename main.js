@@ -23,6 +23,7 @@ const http = require('node:http');
 const { pathToFileURL } = require('node:url');
 const { spawn, execFile } = require('node:child_process');
 const { compareVersions, stripAnsi, sameLoopbackOrigin } = require('./lib/pure.js');
+const { readVisionSettings, writeVisionSettings } = require('./lib/vision-settings.js');
 
 const HOMEDIR = os.homedir();
 const WEB_READY_TIMEOUT_MS = 30000;
@@ -71,6 +72,9 @@ function ringLog(tag, text) {
   }
   if (logRing.length > LOG_MAX) logRing.splice(0, logRing.length - LOG_MAX);
 }
+
+// 视觉助手配置读写见 lib/vision-settings.js（行级手术，引擎热更新）
+
 
 // ============================================================================
 // 设置持久化（userData/settings.json）
@@ -433,6 +437,20 @@ function setAutoCheckTimer(enabled) {
   clearInterval(autoCheckTimer);
   autoCheckTimer = enabled ? setInterval(() => checkUpdate(), AUTO_CHECK_INTERVAL_MS) : null;
 }
+
+// ============================================================================
+// 视觉助手 IPC（配置存 ~/.dsh/settings.yaml 的 vision 段，引擎热更新）
+// ============================================================================
+ipcMain.handle('vision:get-config', () => {
+  const cfg = readVisionSettings();
+  return { ...cfg, apiKey: cfg.apiKey ? '(已设置)' : '' };
+});
+ipcMain.handle('vision:set-config', (_e, patch) => {
+  if (!patch || typeof patch !== 'object') return readVisionSettings();
+  const saved = writeVisionSettings(patch);
+  ringLog('vision', `配置已保存（enabled=${saved.enabled} model=${saved.model}）`);
+  return saved;
+});
 
 // ============================================================================
 // 自检截图（DSH_DESKTOP_SELFCHECK=1；DSH_DESKTOP_SELFCHECK_CRASH=1 附加崩溃自愈演练）

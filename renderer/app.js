@@ -123,9 +123,43 @@
   $('sel-channel').addEventListener('change', (e) => api.setChannel(e.target.value));
   $('btn-refresh-log').addEventListener('click', refreshLog);
 
+  // ============ 视觉助手配置 ============
+  const visionSaved = document.getElementById('vision-saved');
+  let visionKeySet = false;
+  function loadVisionConfig() {
+    api.getVisionConfig().then((cfg) => {
+      $('vision-enabled').checked = cfg.enabled !== false;
+      $('vision-baseurl').value = cfg.baseURL || '';
+      $('vision-model').value = cfg.model || '';
+      $('vision-timeout').value = cfg.timeoutMs || 60000;
+      visionKeySet = !!cfg.apiKey;
+      $('vision-apikey').placeholder = visionKeySet ? '已设置（留空保持原值）' : 'sk-...';
+      $('vision-apikey').value = '';
+      visionSaved.hidden = true;
+    });
+  }
+  $('btn-save-vision').addEventListener('click', () => {
+    const patch = {
+      enabled: $('vision-enabled').checked,
+      baseURL: $('vision-baseurl').value.trim(),
+      model: $('vision-model').value.trim(),
+      timeoutMs: Number($('vision-timeout').value) || 60000,
+    };
+    const key = $('vision-apikey').value.trim();
+    if (key) patch.apiKey = key; // 留空 = 保持原值
+    $('btn-save-vision').disabled = true;
+    api.setVisionConfig(patch).then(() => {
+      visionSaved.hidden = false;
+      $('vision-apikey').value = '';
+      $('vision-apikey').placeholder = '已设置（留空保持原值）';
+      setTimeout(() => { visionSaved.hidden = true; }, 3000);
+    }).finally(() => { $('btn-save-vision').disabled = false; });
+  });
+
   // ============ 初始化 ============
   api.getUpdateState().then((s) => {
     updateState = { ...updateState, ...s };
     renderUpdate();
   });
+  loadVisionConfig();
 })();

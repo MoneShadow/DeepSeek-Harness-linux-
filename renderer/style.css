@@ -147,6 +147,30 @@ body {
 }
 .row select:hover { background: #252c36; }
 
+.row input[type="text"],
+.row input[type="password"],
+.row input[type="number"] {
+  background: #101418;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  width: 190px;
+  outline: none;
+}
+.row input:focus { border-color: var(--accent); }
+.row input::placeholder { color: #5b6572; }
+
+.msg-ok { color: var(--ok); font-size: 12px; }
+.hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  margin: 6px 0 10px;
+  word-break: break-all;
+}
+
 /* ---------- 引擎日志 ---------- */
 .log-box {
   background: #101418;

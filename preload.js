@@ -21,4 +21,8 @@ contextBridge.exposeInMainWorld('dshDesktop', {
   setAutoCheck: (v) => ipcRenderer.send('update:set-auto-check', !!v),
   setAutoInstall: (v) => ipcRenderer.send('update:set-auto-install', !!v),
   setChannel: (c) => ipcRenderer.send('update:set-channel', c),
+
+  // 视觉助手配置（写入 ~/.dsh/settings.yaml 的 vision 段，引擎热更新）
+  getVisionConfig: () => ipcRenderer.invoke('vision:get-config'),
+  setVisionConfig: (patch) => ipcRenderer.invoke('vision:set-config', patch),
 });
