@@ -144,6 +144,15 @@ EOF
   log "同步图标到系统缓存…"
   ./scripts/sync-icons.sh >/dev/null
   ok "图标已同步"
+
+  # ---------- 7. FUSE 检测（AppImage 运行依赖） ----------
+  if ! ldconfig -p 2>/dev/null | grep -q 'libfuse\.so\.2'; then
+    warn "未检测到 FUSE（libfuse2）——AppImage 无法直接运行，请安装："
+    warn "  Ubuntu/Debian: sudo apt install libfuse2"
+    warn "  Fedora:        sudo dnf install fuse"
+    warn "  Arch:          sudo pacman -S fuse2"
+    warn "临时绕过（不装 FUSE）：$APPS_DIR/DSH-Desktop.AppImage --appimage-extract-and-run"
+  fi
 else
   log "跳过构建（--no-build）"
 fi
