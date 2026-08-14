@@ -31,7 +31,7 @@ DeepSeek Harness 的 Linux 桌面客户端（Electron 外壳）。内嵌官方 [
 ## 一键安装
 
 ```bash
-git clone <this-repo> && cd dsh-desktop
+git clone https://github.com/MoneShadow/DeepSeek-Harness-linux- && cd DeepSeek-Harness-linux-
 ./install.sh               # 全自动：环境检查 → dsh CLI → 依赖 → 视觉插件 → AppImage → 桌面入口 → 图标
 ```
 
@@ -107,8 +107,13 @@ tests/                      # node:test 单元测试
 ## 版权与致谢
 
 - 应用图标为 DeepSeek 官方 logo（`assets/icon-source.jpg` / `assets/icon.png`），**版权归 DeepSeek 所有**，仅用于本应用标识
-- [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（MIT）——官方 CLI 与 Web UI
+- [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（MIT）——官方 CLI 与 Web UI；官方项目处于开发者预览阶段，破坏性变更频繁，本应用通过自动更新机制跟进
 - 依赖许可证清单见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)
+
+## 社区
+
+- 插件相关问题欢迎在[官方 Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 交流
+- 本仓库话题：`dsh-plugin`、`deepseek-harness`、`electron`、`linux`
 
 ## License
 
