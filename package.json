@@ -1,7 +1,7 @@
 {
   "name": "dsh-desktop",
-  "version": "0.3.0",
-  "description": "DeepSeek Harness Desktop — 内嵌 cc-tui 终端与会话侧栏的桌面客户端",
+  "version": "0.4.0",
+  "description": "DSH Desktop — 内嵌官方 DeepSeek Harness Web UI 的桌面客户端（含自动更新）",
   "main": "main.js",
   "author": "mone",
   "license": "MIT",
@@ -9,6 +9,8 @@
   "scripts": {
     "start": "electron .",
     "selfcheck": "DSH_DESKTOP_SELFCHECK=1 electron .",
+    "selfcheck-crash": "DSH_DESKTOP_SELFCHECK=1 DSH_DESKTOP_SELFCHECK_CRASH=1 electron .",
+    "test": "node --test",
     "dist": "electron-builder --linux AppImage"
   },
   "dependencies": {},
@@ -26,6 +28,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "lib/**",
       "renderer/**",
       "package.json"
     ],

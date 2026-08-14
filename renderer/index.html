@@ -38,6 +38,20 @@
         <div class="row toggles">
           <label><input type="checkbox" id="chk-auto-install" /> 发现新版本自动安装</label>
         </div>
+        <div class="row">
+          <span>更新通道</span>
+          <select id="sel-channel" title="npm 标签：next=预览版（默认），latest=稳定版">
+            <option value="next">next（预览版）</option>
+            <option value="latest">latest（稳定版）</option>
+          </select>
+        </div>
+      </section>
+      <section class="log-section">
+        <h3>引擎日志</h3>
+        <pre id="web-log" class="log-box"></pre>
+        <div class="row actions">
+          <button id="btn-refresh-log">刷新</button>
+        </div>
       </section>
       <section class="about">
         <h3>关于</h3>

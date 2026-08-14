@@ -136,6 +136,32 @@ body {
 .row button.primary:hover { background: #1c2c4a; }
 .row button:disabled { opacity: 0.45; cursor: not-allowed; }
 
+.row select {
+  background: #1d232b;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.row select:hover { background: #252c36; }
+
+/* ---------- 引擎日志 ---------- */
+.log-box {
+  background: #101418;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  font: 11px/1.55 ui-monospace, "JetBrains Mono", monospace;
+  color: #9aa7b5;
+  height: 150px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin-bottom: 8px;
+}
+
 .message {
   min-height: 18px;
   font-size: 12px;

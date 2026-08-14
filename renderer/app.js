@@ -19,6 +19,12 @@
     } else if (s.state === 'timeout') {
       loadingStatus.textContent = 'Web 服务启动超时';
       retryBtn.hidden = false;
+    } else if (s.state === 'restarting') {
+      loadingStatus.textContent = 'Web 服务异常退出，正在自动重启…';
+      retryBtn.hidden = true;
+    } else if (s.state === 'failed') {
+      loadingStatus.textContent = 'Web 服务多次重启失败，请手动重试';
+      retryBtn.hidden = false;
     } else if (s.state === 'stopped') {
       document.body.classList.remove('web-ready');
       loadingStatus.textContent = 'Web 服务已停止';
@@ -60,8 +66,10 @@
     msgEl.className = 'message ' + (s.state === 'done' ? 'done' : s.state === 'error' ? 'error' : s.state === 'checking' || s.state === 'installing' ? 'info' : '');
     $('btn-install-update').disabled = s.state !== 'update-available' || s.installing;
     $('btn-check-update').disabled = s.state === 'checking' || s.state === 'installing';
+    // 设置值由主进程回传，勾选框如实反映（v0.4 修复：此前渲染层永远拿不到保存值）
     $('chk-auto-check').checked = s.autoCheck !== false;
     $('chk-auto-install').checked = !!s.autoInstall;
+    $('sel-channel').value = s.channel === 'latest' ? 'latest' : 'next';
 
     // 横幅：有新版且面板未打开时提示
     if (s.state === 'update-available' && panel.hidden) {
@@ -70,11 +78,7 @@
     } else {
       banner.hidden = true;
     }
-
-    // 自动安装
-    if (s.autoInstall && s.state === 'update-available' && !s.installing) {
-      api.installUpdate();
-    }
+    // 自动安装由主进程判定（update:check 完成后触发），渲染层不再决策
   }
 
   api.onUpdateStatus((s) => {
@@ -82,11 +86,30 @@
     renderUpdate();
   });
 
+  // ============ 引擎日志 ============
+  const logBox = document.getElementById('web-log');
+  let logTimer = null;
+  function refreshLog() {
+    api.getWebLog().then((r) => {
+      logBox.textContent = (r.lines || []).join('\n');
+      logBox.scrollTop = logBox.scrollHeight;
+    });
+  }
+
   function togglePanel(show) {
     panel.hidden = !show;
-    if (show && !shownSettingsOnce) {
-      shownSettingsOnce = true;
-      api.checkUpdate(true); // 打开时静默检查
+    if (show) {
+      refreshLog();
+      if (!logTimer) {
+        logTimer = setInterval(() => { if (!panel.hidden) refreshLog(); }, 4000);
+      }
+      if (!shownSettingsOnce) {
+        shownSettingsOnce = true;
+        api.checkUpdate(true); // 打开时静默检查
+      }
+    } else if (logTimer) {
+      clearInterval(logTimer);
+      logTimer = null;
     }
   }
 
@@ -97,6 +120,8 @@
   $('btn-install-update').addEventListener('click', () => api.installUpdate());
   $('chk-auto-check').addEventListener('change', (e) => api.setAutoCheck(e.target.checked));
   $('chk-auto-install').addEventListener('change', (e) => api.setAutoInstall(e.target.checked));
+  $('sel-channel').addEventListener('change', (e) => api.setChannel(e.target.value));
+  $('btn-refresh-log').addEventListener('click', refreshLog);
 
   // ============ 初始化 ============
   api.getUpdateState().then((s) => {

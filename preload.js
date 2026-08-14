@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('dshDesktop', {
   onWebStatus: (cb) => ipcRenderer.on('web:status', (_e, s) => cb(s)),
   getWebState: () => ipcRenderer.invoke('web:get-state'),
   retry: () => ipcRenderer.send('web:retry'),
+  getWebLog: () => ipcRenderer.invoke('web:get-log'),
 
   // 更新管理
   onUpdateStatus: (cb) => ipcRenderer.on('update:status', (_e, s) => cb(s)),
@@ -19,4 +20,5 @@ contextBridge.exposeInMainWorld('dshDesktop', {
   getUpdateState: () => ipcRenderer.invoke('update:get-state'),
   setAutoCheck: (v) => ipcRenderer.send('update:set-auto-check', !!v),
   setAutoInstall: (v) => ipcRenderer.send('update:set-auto-install', !!v),
+  setChannel: (c) => ipcRenderer.send('update:set-channel', c),
 });
