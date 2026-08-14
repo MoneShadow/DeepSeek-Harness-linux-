@@ -2,13 +2,16 @@
  * dsh-plugin-vision — Cordis 插件入口
  *
  * 注册 `vision_describe` 工具到 host tools 注册表（global layer，所有 agent
- * 会话可见）。配置经官方设置 UI 的插件配置卡片修改（apiKey 为 secret 角色）。
+ * 会话可见）。配置通过 **settings namespace `vision`** 暴露给官方设置 UI 的
+ * 插件配置卡片（apiKey 为 secret 角色，write-only 不回显），改配置**即时生效**
+ * （settings 服务 live 应用，无需重启引擎）。
  *
  * 开关语义（符合"视觉辅助"产品构想）：
  * - enabled=false 时工具**仍注册**，但调用返回明确提示——主模型据此提醒用户开启；
  * - 未配置 apiKey/model/baseURL 时同样返回配置引导，不抛异常。
  */
 import { defineTool } from '@deepseek-ai/dsh-tools';
+import { settingsNamespace } from '@deepseek-ai/dsh-settings';
 import z from '@deepseek-ai/schemastery';
 import { describeImage } from './describe.js';
 
@@ -16,8 +19,8 @@ export const name = 'vision';
 
 export const inject = ['tools'];
 
-/** 运行时配置 schema（官方设置 UI 据此渲染插件配置卡片） */
-export const Config = z.object({
+/** 视觉辅助设置（同时用于工具行 config 校验与 settings namespace schema） */
+export const VisionSettingsSchema = z.object({
   enabled: z.boolean().default(true).description('视觉辅助总开关：关闭后 vision_describe 会提示主模型引导用户开启'),
   baseURL: z.string().default('https://api.openai.com/v1').description('OpenAI 兼容接口地址（如 OpenAI / 通义千问 / 智谱 / SiliconFlow 等，含 /v1）'),
   apiKey: z.string().role('secret').default('').description('视觉模型 API 密钥（write-only，不会回显）'),
@@ -25,7 +28,21 @@ export const Config = z.object({
   timeoutMs: z.number().default(60000).description('单次描述请求超时（毫秒）'),
 });
 
+/** 工具行运行时配置 schema（默认值层；用户配置走 settings namespace） */
+export const Config = VisionSettingsSchema;
+
 export function apply(ctx, config) {
+  // 注册 settings namespace：官方设置 UI 的"插件配置"区据此渲染 vision 卡片；
+  // 行 config 作为 base 默认层，用户写入的 settings section 覆盖之
+  let settingsScope = null;
+  ctx.inject(['settings'], (settingsCtx) => {
+    settingsScope = settingsCtx.settings.register(
+      settingsNamespace('vision'),
+      VisionSettingsSchema,
+      { base: config }
+    );
+  });
+
   ctx.tools.register(defineTool({
     name: 'vision_describe',
     description: 'Describe an image via the configured vision model (OpenAI-compatible API). ' +
@@ -47,10 +64,12 @@ export function apply(ctx, config) {
       render: (_args, value) => [{ type: 'text', text: String(value) }],
     },
     execute: async (args) => {
-      if (!config.enabled) {
+      // 每次调用取最新设置（settings 服务 live 应用，改配置无需重启）
+      const cfg = settingsScope ? settingsScope.get() : config;
+      if (!cfg.enabled) {
         return '视觉辅助已关闭：主模型没有视觉能力，如需查看图片请在 DSH Desktop 的 设置 → 插件配置 中开启 dsh-plugin-vision 的 enabled 开关（或直接告诉用户开启）。';
       }
-      return describeImage(config, {
+      return describeImage(cfg, {
         image: args.image,
         prompt: args.prompt,
       });
