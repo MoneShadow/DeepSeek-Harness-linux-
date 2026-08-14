@@ -71,6 +71,34 @@ fi
 if [ -z "$DSH_BIN" ]; then
   warn "未找到 dsh，开始安装 @deepseek-ai/dsh@next（全局）…"
   warn "⚠️  安装期间请勿中断（Ctrl-C / 关终端都会损坏全局依赖树，所有 profile 全崩）"
+
+  # 编译工具检测：dsh 的 node-pty 无预编译产物时需要 make/gcc/g++ 源码编译
+  # （Ubuntu 最小安装 / 部分容器镜像常缺失，实测 node-gyp 报 "not found: make"）
+  MISSING_TOOLS=""
+  for tool in make gcc g++; do
+    command -v "$tool" >/dev/null 2>&1 || MISSING_TOOLS="$MISSING_TOOLS $tool"
+  done
+  if [ -n "$MISSING_TOOLS" ]; then
+    warn "缺少编译工具：$MISSING_TOOLS（node-pty 需要源码编译）"
+    BUILD_CMD=""
+    if [ -f /etc/os-release ]; then
+      # shellcheck disable=SC1091
+      . /etc/os-release
+      case "${ID:-}" in
+        ubuntu|debian|linuxmint|pop) BUILD_CMD="sudo apt update && sudo apt install -y build-essential python3" ;;
+        fedora|rhel|centos)          BUILD_CMD="sudo dnf groupinstall -y 'Development Tools'" ;;
+        arch|manjaro|endeavouros)    BUILD_CMD="sudo pacman -S --noconfirm base-devel" ;;
+      esac
+    fi
+    if [ -n "$BUILD_CMD" ]; then
+      warn "自动安装编译工具：$BUILD_CMD"
+      eval "$BUILD_CMD" || { fail "编译工具安装失败，请手动执行：$BUILD_CMD 后重跑本脚本"; exit 1; }
+    else
+      fail "请先安装编译工具（make/gcc/g++），再重跑本脚本"
+      exit 1
+    fi
+  fi
+
   # 全局前缀可写性检查（npm prefix 目录）
   NPM_PREFIX="$(npm prefix -g)"
   if [ -w "$NPM_PREFIX" ]; then
