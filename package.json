@@ -5,6 +5,7 @@
   "main": "main.js",
   "author": "mone",
   "license": "MIT",
+  "desktopName": "dsh-desktop",
   "scripts": {
     "start": "electron .",
     "selfcheck": "DSH_DESKTOP_SELFCHECK=1 electron .",
@@ -38,7 +39,8 @@
       "category": "Development",
       "icon": "assets/icon.png",
       "maintainer": "mone",
-      "synopsis": "DeepSeek Harness 桌面客户端"
+      "synopsis": "DeepSeek Harness 桌面客户端",
+      "syncDesktopName": true
     }
   }
 }

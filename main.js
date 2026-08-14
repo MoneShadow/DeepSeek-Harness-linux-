@@ -268,7 +268,8 @@ ipcMain.on('clipboard:paste', () => {
 // ---------- 自检截图（DSH_DESKTOP_SELFCHECK=1） ----------
 function maybeSelfcheck() {
   if (process.env.DSH_DESKTOP_SELFCHECK !== '1') return;
-  const shotDir = path.join(__dirname, 'screenshots');
+  // 打包后 __dirname 在只读 asar 内，截图放 userData 目录
+  const shotDir = path.join(app.getPath('userData'), 'screenshots');
   fs.mkdirSync(shotDir, { recursive: true });
   let n = 0;
   const snap = () => {
