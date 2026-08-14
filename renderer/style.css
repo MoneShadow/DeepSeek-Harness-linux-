@@ -1,5 +1,8 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* 铁律：hidden 属性永远优先于任何 display 规则（防面板/横幅无法关闭） */
+[hidden] { display: none !important; }
+
 :root {
   --bg: #111418;
   --bg2: #161a1f;

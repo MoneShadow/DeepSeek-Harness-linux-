@@ -115,6 +115,10 @@
 
   $('btn-settings').addEventListener('click', () => togglePanel(panel.hidden));
   $('btn-close-settings').addEventListener('click', () => togglePanel(false));
+  // ESC 关闭设置面板
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !panel.hidden) togglePanel(false);
+  });
   $('banner-open').addEventListener('click', () => { togglePanel(false); togglePanel(true); });
   $('btn-check-update').addEventListener('click', () => api.checkUpdate(false));
   $('btn-install-update').addEventListener('click', () => api.installUpdate());
