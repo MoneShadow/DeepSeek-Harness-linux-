@@ -338,6 +338,7 @@ function pollWebReady() {
         webReady = true;
         restartAttempts = 0; // 恢复成功，重置重启计数
         sendWebStatus('ready');
+        setTimeout(patchClipboardInFrames, 300); // iframe 加载后注入剪贴板补丁
         return;
       }
       setTimeout(tick, 400);
@@ -384,6 +385,12 @@ function createWindow() {
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   win.on('closed', () => { win = null; });
   win.on('close', () => killWeb());
+  // iframe 每次导航（会话切换/重连）后重新注入剪贴板补丁
+  win.webContents.on('frame-navigated', (_e, url, isMainFrame) => {
+    if (!isMainFrame && url.startsWith('http://127.0.0.1')) {
+      setTimeout(patchClipboardInFrames, 200);
+    }
+  });
 
   // 导航锁定：仅放行应用自身 renderer/ 页面与 127.0.0.1 官方 UI（精确 origin 比对）
   win.webContents.on('will-navigate', (e, url) => {
@@ -413,6 +420,64 @@ ipcMain.on('window:toggle-maximize', () => {
   if (win && !win.isDestroyed()) (win.isMaximized() ? win.unmaximize() : win.maximize());
 });
 ipcMain.on('window:close', () => { if (win && !win.isDestroyed()) win.close(); });
+// 剪贴板兜底：iframe 内复制失败时经父页面 IPC 走主进程 clipboard（无焦点限制）
+const { clipboard } = require('electron');
+ipcMain.handle('clipboard:write', (_e, text) => {
+  try { clipboard.writeText(String(text ?? '')); return true; } catch { return false; }
+});
+
+// ============================================================================
+// 官方 UI iframe 剪贴板补丁（不魔改官方代码，仅兼容层增强）
+// 官方 UI 的 navigator.clipboard.writeText 在文档无焦点时抛 NotAllowedError
+// （Electron/iframe 场景），复制静默失败。注入包装：聚焦重试 → execCommand
+// 兜底 → postMessage 父页面走主进程 clipboard（最终兜底）。
+// ============================================================================
+const CLIPBOARD_PATCH_SRC = `(() => {
+  if (window.__dshClipboardPatched) return;
+  const navClip = navigator.clipboard;
+  if (!navClip || typeof navClip.writeText !== 'function') return;
+  const orig = navClip.writeText.bind(navClip);
+  const fallbackTextarea = (text) => {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = String(text);
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    } catch { return false; }
+  };
+  navClip.writeText = async (text) => {
+    try { return await orig(text); }
+    catch (e) {
+      // 1) 聚焦后重试（NotAllowedError: Document is not focused）
+      try { window.focus(); if (document.body) document.body.focus(); return await orig(text); } catch { /* next */ }
+      // 2) execCommand 兜底
+      if (fallbackTextarea(text)) return;
+      // 3) 父页面 → 主进程 clipboard 最终兜底
+      try {
+        window.parent.postMessage({ type: 'dsh-clipboard-fallback', text: String(text) }, '*');
+      } catch { /* ignore */ }
+      throw e;
+    }
+  };
+  window.__dshClipboardPatched = true;
+})();`;
+
+/** 对官方 UI iframe 注入剪贴板补丁（幂等，注入主世界）。 */
+function patchClipboardInFrames() {
+  if (!win || win.isDestroyed()) return;
+  let frames = [];
+  try { frames = win.webContents.mainFrame.frames; } catch { return; }
+  for (const f of frames) {
+    if (f.url.startsWith('http://127.0.0.1')) {
+      f.executeJavaScript(CLIPBOARD_PATCH_SRC).catch(() => { /* 帧可能已销毁 */ });
+    }
+  }
+}
 ipcMain.handle('web:get-state', () => ({ state: webReady ? 'ready' : (webProc ? 'starting' : 'stopped'), url: webUrl }));
 ipcMain.handle('web:get-log', () => ({ lines: logRing.slice(-300) }));
 ipcMain.on('web:retry', () => {

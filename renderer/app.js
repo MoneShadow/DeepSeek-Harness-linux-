@@ -165,6 +165,14 @@
     }).finally(() => { $('btn-save-vision').disabled = false; });
   });
 
+  // ============ iframe 剪贴板兜底 ============
+  // 官方 UI 复制在文档无焦点时失败，其补丁会 postMessage 到这里，走主进程 clipboard
+  window.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'dsh-clipboard-fallback' && typeof e.data.text === 'string') {
+      api.writeClipboard(e.data.text);
+    }
+  });
+
   // ============ 初始化 ============
   api.getUpdateState().then((s) => {
     updateState = { ...updateState, ...s };
