@@ -1,6 +1,6 @@
 {
   "name": "dsh-desktop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "DeepSeek Harness Desktop — 内嵌 cc-tui 终端与会话侧栏的桌面客户端",
   "main": "main.js",
   "author": "mone",
@@ -9,14 +9,9 @@
   "scripts": {
     "start": "electron .",
     "selfcheck": "DSH_DESKTOP_SELFCHECK=1 electron .",
-    "dist": "electron-builder --linux AppImage",
-    "postinstall": "electron-builder install-app-deps"
+    "dist": "electron-builder --linux AppImage"
   },
-  "dependencies": {
-    "@xterm/addon-fit": "^0.10.0",
-    "@xterm/xterm": "^5.5.0",
-    "node-pty": "^1.0.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "electron": "^41.0.0",
     "electron-builder": "^26.0.12"

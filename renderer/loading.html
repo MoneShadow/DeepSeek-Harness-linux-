@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+  <title>DSH Desktop</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      background: #111418;
+      color: #d7dce2;
+      font-family: system-ui, "Noto Sans CJK SC", sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .box { text-align: center; }
+    .logo { font-size: 44px; display: block; margin-bottom: 14px; }
+    .app-name { font-size: 17px; font-weight: 600; letter-spacing: 1px; margin-bottom: 22px; }
+    .spinner {
+      width: 22px; height: 22px;
+      border: 2.5px solid #2a313b;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      margin: 0 auto 14px;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #status { color: #7d8794; font-size: 13px; min-height: 20px; }
+    #retry {
+      display: none;
+      margin-top: 14px;
+      border: 1px solid #3b82f6;
+      background: transparent;
+      color: #8ab4ff;
+      border-radius: 6px;
+      padding: 6px 22px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    #retry:hover { background: #17233a; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <span class="logo">🐳</span>
+    <div class="app-name">DSH Desktop</div>
+    <div class="spinner" id="spinner"></div>
+    <div id="status">正在启动 DSH Web 服务…</div>
+    <button id="retry">重新连接</button>
+  </div>
+  <script src="./app.js"></script>
+</body>
+</html>
