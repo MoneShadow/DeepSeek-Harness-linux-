@@ -85,16 +85,42 @@ if [ -z "$DSH_BIN" ]; then
       # shellcheck disable=SC1091
       . /etc/os-release
       case "${ID:-}" in
-        ubuntu|debian|linuxmint|pop) BUILD_CMD="sudo apt update && sudo apt install -y build-essential python3" ;;
-        fedora|rhel|centos)          BUILD_CMD="sudo dnf groupinstall -y 'Development Tools'" ;;
-        arch|manjaro|endeavouros)    BUILD_CMD="sudo pacman -S --noconfirm base-devel" ;;
+        ubuntu|debian|linuxmint|pop|elementary|deepin|neon|zorin|kali)
+          BUILD_CMD="sudo apt update && sudo apt install -y build-essential python3" ;;
+        fedora)
+          BUILD_CMD="sudo dnf groupinstall -y 'Development Tools'" ;;
+        rhel|centos|almalinux|rocky|ol|amzn)
+          # 现代版用 dnf，RHEL/CentOS 7 及以下用 yum
+          if command -v dnf >/dev/null 2>&1; then
+            BUILD_CMD="sudo dnf groupinstall -y 'Development Tools'"
+          else
+            BUILD_CMD="sudo yum groupinstall -y 'Development Tools'"
+          fi ;;
+        arch|manjaro|endeavouros|garuda|artix)
+          BUILD_CMD="sudo pacman -S --noconfirm base-devel python" ;;
+        opensuse*|sles)
+          BUILD_CMD="sudo zypper install -y -t pattern devel_basis" ;;
+        alpine)
+          BUILD_CMD="sudo apk add --no-cache build-base python3" ;;
+        void)
+          BUILD_CMD="sudo xbps-install -Suy && sudo xbps-install -y base-devel" ;;
+        mageia)
+          BUILD_CMD="sudo urpmi --auto gcc gcc-c++ make python3" ;;
+        *)
+          # ID_LIKE 兜底：Deepin/KDE neon/Elementary 等派生发行版
+          case "${ID_LIKE:-}" in
+            *debian*) BUILD_CMD="sudo apt update && sudo apt install -y build-essential python3" ;;
+            *fedora*|*rhel*|*centos*) BUILD_CMD="sudo dnf groupinstall -y 'Development Tools'" ;;
+            *arch*)   BUILD_CMD="sudo pacman -S --noconfirm base-devel python" ;;
+            *suse*)   BUILD_CMD="sudo zypper install -y -t pattern devel_basis" ;;
+          esac ;;
       esac
     fi
     if [ -n "$BUILD_CMD" ]; then
       warn "自动安装编译工具：$BUILD_CMD"
       eval "$BUILD_CMD" || { fail "编译工具安装失败，请手动执行：$BUILD_CMD 后重跑本脚本"; exit 1; }
     else
-      fail "请先安装编译工具（make/gcc/g++），再重跑本脚本"
+      fail "未识别的发行版，请先手动安装编译工具（make/gcc/g++），再重跑本脚本"
       exit 1
     fi
   fi
