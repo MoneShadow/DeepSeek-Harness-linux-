@@ -498,6 +498,9 @@ function maybeSelfcheck() {
         autoCheck: document.getElementById('chk-auto-check').checked,
         autoInstall: document.getElementById('chk-auto-install').checked,
         channel: document.getElementById('sel-channel').value,
+        visionEnabled: document.getElementById('vision-enabled').checked,
+        visionModel: document.getElementById('vision-model').value,
+        visionKeyPlaceholder: document.getElementById('vision-apikey').placeholder,
         logLines: logBox ? logBox.textContent.split('\\n').length : -1,
         logHead: logBox ? logBox.textContent.slice(0, 100) : '',
       };
