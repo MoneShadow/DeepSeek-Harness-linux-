@@ -5,3 +5,8 @@ screenshots/
 
 # 设置面板截图产物
 .panel-shot.png
+
+# 内部迭代文档（不随开源分发）
+ITERATION_CONTEXT.md
+HARD_RULES.md
+SESSION_MISTAKES_REVIEW.md

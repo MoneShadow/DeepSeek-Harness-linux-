@@ -16,15 +16,36 @@
 #   3. 清除 profile 里 pnpm 留下的依赖副本，让解析回落到 heal 软链层
 #   4. manifest 的 bundles 加名（dependencies 不写 file: 条目，杜绝 pnpm 重建副本）
 #
-# 用法：./scripts/deploy-plugin.sh [profile]   # 默认 web
+# 用法：./scripts/deploy-plugin.sh [profile] [插件源码目录]   # 默认 web / 本仓库 plugins/
 # 铁律：目标 profile 不能被任何引擎占用（先退出 DSH Desktop / 停掉相关引擎）！
 set -euo pipefail
 
 PROFILE="${1:-web}"
-HOME_DIR="${HOME:-/home/mone}"
-PLUGIN_SRC="$HOME_DIR/dsh-desktop/plugins/dsh-plugin-vision"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_SRC="${2:-$SCRIPT_DIR/../plugins/dsh-plugin-vision}"
 PLUGIN_NAME="dsh-plugin-vision"
-DSH_NODE_MODULES="$HOME_DIR/.local/lib/node_modules/@deepseek-ai/dsh/node_modules"
+HOME_DIR="${HOME:-$(getent passwd "$(id -u)" | cut -d: -f6)}"
+
+# 自动探测 dsh 安装位置：从 dsh 可执行文件 realpath 向上找全局依赖树
+detect_dsh_dir() {
+  local bin=""
+  bin="$(command -v dsh 2>/dev/null || true)"
+  if [ -z "$bin" ]; then
+    for c in "$HOME_DIR/.local/bin/dsh" /usr/local/bin/dsh /usr/bin/dsh; do
+      [ -x "$c" ] && bin="$c" && break
+    done
+  fi
+  if [ -z "$bin" ]; then
+    echo "❌ 找不到 dsh 可执行文件（请先安装 @deepseek-ai/dsh 或把 dsh 加入 PATH）" >&2
+    exit 1
+  fi
+  # ~/.local/bin/dsh -> .../@deepseek-ai/dsh/lib/bin.js：取 lib/ 上两级的包目录
+  local real dir
+  real="$(readlink -f "$bin" 2>/dev/null || echo "$bin")"
+  dir="$(dirname "$(dirname "$real")")"
+  if [ -d "$dir/node_modules" ]; then echo "$dir/node_modules"; else echo "$dir"; fi
+}
+DSH_NODE_MODULES="$(detect_dsh_dir)"
 PROFILE_DIR="$HOME_DIR/.dsh/profiles/$PROFILE"
 PROFILE_NM="$PROFILE_DIR/node_modules"
 HEAL_NM="$HOME_DIR/.dsh/profiles/node_modules"
@@ -33,6 +54,7 @@ if [ ! -d "$PLUGIN_SRC" ]; then echo "❌ 插件源码不存在：$PLUGIN_SRC"; 
 if [ ! -f "$PROFILE_DIR/package.json" ]; then echo "❌ profile 不存在：$PROFILE_DIR"; exit 1; fi
 
 echo "==> 部署 dsh-plugin-vision → profile [$PROFILE]"
+echo "==> dsh 依赖树：$DSH_NODE_MODULES"
 
 # 0. 安全提示：目标 profile 不应有引擎在跑
 RUNNING=$(pgrep -af "dsh --profile $PROFILE " | grep -v bwrap | grep -v deploy-plugin || true)
