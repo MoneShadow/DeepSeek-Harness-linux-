@@ -2,6 +2,16 @@
 
 DeepSeek Harness 的 Linux 桌面客户端（Electron 外壳）。内嵌官方 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) Web UI，附带自动更新、稳定性自愈与视觉辅助插件。
 
+## 界面预览
+
+**主界面**：内嵌官方 Harness Web UI（工作区 / 新会话 / 极简模式），顶栏 ⚙ 进入设置面板。
+
+<img src="assets/screenshot-main.png" width="720" alt="DSH Desktop 主界面：内嵌官方 Harness Web UI" />
+
+**设置面板**：Harness 更新管理（通道/自动检查/自动安装）、视觉助手配置（`vision_describe` 接口 / 密钥 / 模型，保存即时生效）、引擎日志。
+
+<img src="assets/screenshot-settings.png" width="360" alt="DSH Desktop 设置面板：更新、视觉助手、引擎日志" />
+
 ## 设计哲学
 
 **不 fork、不魔改官方 dsh**——纯外壳封装：
