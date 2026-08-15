@@ -440,7 +440,9 @@ ipcMain.handle('vision:save-pasted-image', (_e, { data, name, mime }) => {
     if (!m) return { ok: false, error: '非法的图片数据' };
     const ext = ({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif' }[String(mime || m[1])] || 'img');
     fs.mkdirSync(PASTE_DIR, { recursive: true });
-    const file = path.join(PASTE_DIR, `${Date.now()}-${String(name || 'paste').replace(/[^\w.-]/g, '_') || 'image'}.${ext}`);
+    // 剥离 name 自带的扩展名（剪贴板图片常为 image.png），避免 image.png.png 双后缀
+    const base = String(name || 'image').replace(/[^\w.-]/g, '_').replace(/\.[A-Za-z0-9]+$/, '') || 'image';
+    const file = path.join(PASTE_DIR, `${Date.now()}-${base}.${ext}`);
     fs.writeFileSync(file, Buffer.from(m[2], 'base64'));
     ringLog('vision', `粘贴图片已存盘：${file}`);
     return { ok: true, path: file };
