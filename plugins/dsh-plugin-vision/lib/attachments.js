@@ -1,14 +1,45 @@
 /**
- * dsh-plugin-vision — 附件上下文（纯函数 + fs 工具，可单测）
+ * dsh-plugin-vision — 附件上下文与配置兜底（纯函数 + fs 工具，可单测）
  *
  * 把会话消息里的图片附件（ImageAttachmentRef）转成模型可见的文本清单，
  * 并在附件存储里为每个附件建立带扩展名的可读链接（内容寻址存储的原始
  * 文件无扩展名）。注册为 systemPrompt 动态 context 后，主模型每次请求
  * 都会看到"会话有哪些图片 + 路径"，可据此调用 vision_describe。
  */
-import { existsSync, mkdirSync, linkSync, symlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, linkSync, readFileSync, symlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import os from 'node:os';
+
+/**
+ * 配置兜底：直接从 ~/.dsh/settings.yaml 行级解析 vision 段。
+ * settings 服务在部分启动时序下可能未把文件内容发布到 registration
+ * （插件读到空 apiKey），此兜底保证任何情况下都能拿到文件里的配置。
+ * @returns {object|null} vision 段配置（缺失返回 null）
+ */
+export function readVisionSettingsFromFile(dshHome = process.env.DSH_HOME || join(os.homedir(), '.dsh')) {
+  const file = join(dshHome, 'settings.yaml');
+  let text = '';
+  try { text = readFileSync(file, 'utf8'); } catch { return null; }
+  const parseScalar = (v) => {
+    const s = String(v).trim();
+    if (s === '' || s === 'null' || s === '~') return null;
+    if (/^(true|false)$/.test(s)) return s === 'true';
+    if (/^-?\d+$/.test(s) || /^-?\d*\.\d+$/.test(s)) return Number(s);
+    const q = s.match(/^"((?:[^"\\]|\\.)*)"$/);
+    if (q) { try { return JSON.parse(`"${q[1]}"`); } catch { return q[1]; } }
+    return s;
+  };
+  const out = {};
+  let inVision = false;
+  for (const line of String(text).split('\n')) {
+    if (/^vision:\s*$/.test(line)) { inVision = true; continue; }
+    if (!inVision) continue;
+    const m = line.match(/^\s{2}(\S+):\s*(.*)$/);
+    if (m) out[m[1]] = parseScalar(m[2]);
+    else if (/^\S/.test(line) && line.trim() !== '') break;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
 
 /** 附件存储根：DSH_HOME/attachments/v1（官方 attachment-local 的 versioned root）。 */
 export function attachmentsRoot(dshHome = process.env.DSH_HOME || join(os.homedir(), '.dsh')) {

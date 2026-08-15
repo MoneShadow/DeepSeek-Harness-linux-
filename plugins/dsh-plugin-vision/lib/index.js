@@ -14,7 +14,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools';
 import { settingsNamespace } from '@deepseek-ai/dsh-settings';
 import z from '@deepseek-ai/schemastery';
 import { describeImage } from './describe.js';
-import { collectImageRefs, renderAttachmentContext } from './attachments.js';
+import { collectImageRefs, renderAttachmentContext, readVisionSettingsFromFile } from './attachments.js';
 
 export const name = 'vision';
 
@@ -87,7 +87,13 @@ export function apply(ctx, config) {
     },
     execute: async (args) => {
       // 每次调用取最新设置（settings 服务 live 应用，改配置无需重启）
-      const cfg = settingsScope ? settingsScope.get() : config;
+      let cfg = settingsScope ? settingsScope.get() : config;
+      // 兜底：settings 服务在部分启动时序下可能未发布文件内容（apiKey 空），
+      // 直接从 settings.yaml 读取补齐
+      if (!cfg.apiKey) {
+        const fileCfg = readVisionSettingsFromFile();
+        if (fileCfg && fileCfg.apiKey) cfg = { ...cfg, ...fileCfg };
+      }
       if (!cfg.enabled) {
         return '视觉辅助已关闭：主模型没有视觉能力，如需查看图片请在 DSH Desktop 的 设置 → 插件配置 中开启 dsh-plugin-vision 的 enabled 开关（或直接告诉用户开启）。';
       }

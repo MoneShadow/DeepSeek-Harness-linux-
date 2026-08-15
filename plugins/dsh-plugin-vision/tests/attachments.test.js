@@ -10,7 +10,7 @@ import path from 'node:path';
 import { sniffImageMime, imageSourceToUrl } from '../lib/describe.js';
 import {
   attachmentsRoot, objectPath, ensureVisibleLink,
-  collectImageRefs, renderAttachmentContext,
+  collectImageRefs, renderAttachmentContext, readVisionSettingsFromFile,
 } from '../lib/attachments.js';
 
 test('sniffImageMime: PNG/JPEG/WebP/GIF/BMP magic bytes', () => {
@@ -67,6 +67,34 @@ test('collectImageRefs: 提取 image 块并去重', () => {
   assert.equal(refs.length, 2);
   assert.equal(refs[0].id, 'aaa');
   assert.equal(refs[1].id, 'bbb');
+});
+
+test('readVisionSettingsFromFile: 解析 vision 段（配置兜底）', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vision-fallback-'));
+  fs.writeFileSync(path.join(dir, 'settings.yaml'), [
+    'ui-theme:', '  preference: system',
+    'vision:',
+    '  enabled: true',
+    '  baseURL: "https://api.example.com/v1"',
+    '  apiKey: "sk-test-123"',
+    '  model: "mimo-v2.5"',
+    '  timeoutMs: 60000',
+    'agent-presets:', '  default: minimal',
+    '',
+  ].join('\n'));
+  const cfg = readVisionSettingsFromFile(dir);
+  assert.equal(cfg.apiKey, 'sk-test-123');
+  assert.equal(cfg.model, 'mimo-v2.5');
+  assert.equal(cfg.enabled, true);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('readVisionSettingsFromFile: 无 vision 段/文件缺失返回 null', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vision-fallback-'));
+  fs.writeFileSync(path.join(dir, 'settings.yaml'), 'ui-theme:\n  preference: system\n');
+  assert.equal(readVisionSettingsFromFile(dir), null);
+  fs.rmSync(dir, { recursive: true, force: true });
+  assert.equal(readVisionSettingsFromFile(path.join(dir, 'nope')), null);
 });
 
 test('renderAttachmentContext: 空附件返回空串（不污染提示词）', () => {
