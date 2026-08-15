@@ -53,6 +53,12 @@ npx electron-builder --linux AppImage   # 手动打包
 ## 视觉助手插件（dsh-plugin-vision）
 
 给主模型装上"眼睛"：注册 `vision_describe` 工具，通过 OpenAI 兼容视觉 API 描述图片（本地路径 / file:// / http(s) URL）。
+插件独立维护：[dsh-plugin-vision](https://github.com/MoneShadow/dsh-plugin-vision)。
+
+**粘贴图片自动转路径（桌面端内置，非插件功能）**：在官方 UI 输入框粘贴图片时，
+本应用自动检测图片格式 → 拦截官方附件上传（文本模型不支持图片消息）→ 图片存盘
+`~/.dsh/attachments/paste/` → 自动把 `[图片] /真实路径` 插入输入框 → 主模型用
+`vision_describe` 查看。开关在设置面板「视觉助手」区块（`vision.autoPath`，默认开）。
 
 **可用性分层**：
 - 工具层：引擎侧注册，官方 Web UI、桌面端、headless 均可用
