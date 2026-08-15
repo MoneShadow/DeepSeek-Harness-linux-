@@ -18,6 +18,9 @@
 #
 # 注意：若 DSH Desktop 正在运行，插件安装步骤会跳过并给出提示，
 #       退出应用后重跑本脚本即可补齐。
+# 安全（HARD_RULES 禁令 9/10）：
+#   - dsh 安装一律"先卸载再安装 --force"，禁止在已有安装上增量 npm install -g
+#   - 插件挂载失败时同步清理 bundles 声明，绝不留下"声明在、实体无"的半挂状态
 # ============================================================================
 set -euo pipefail
 
@@ -62,13 +65,22 @@ command -v npm >/dev/null 2>&1 && ok "npm $(npm -v)" || { fail "未找到 npm"; 
 
 # ---------- 2. 官方 dsh CLI ----------
 log "检查官方 dsh CLI…"
+
+# 探测 dsh：PATH → 常见路径 → npm 全局安装状态
+# （PATH 可能不含 ~/.local/bin；若误判"未安装"会在已有安装上跑增量
+#   npm install -g → hoist 重排 → 全局树损坏，见 HARD_RULES 禁令 9）
 DSH_BIN="$(command -v dsh 2>/dev/null || true)"
 if [ -z "$DSH_BIN" ]; then
   for c in "$HOME_DIR/.local/bin/dsh" /usr/local/bin/dsh /usr/bin/dsh; do
     [ -x "$c" ] && DSH_BIN="$c" && break
   done
 fi
-if [ -z "$DSH_BIN" ]; then
+if [ -z "$DSH_BIN" ] && npm ls -g "@deepseek-ai/dsh" >/dev/null 2>&1; then
+  warn "npm 全局已安装 @deepseek-ai/dsh，但 PATH 中找不到 dsh 命令"
+  warn "（npm 全局目录未加入 PATH？请检查后把 $(npm prefix -g)/bin 加入 PATH）"
+  warn "跳过安装（避免在已有安装上增量重装）"
+fi
+if [ -z "$DSH_BIN" ] && ! npm ls -g "@deepseek-ai/dsh" >/dev/null 2>&1; then
   warn "未找到 dsh，开始安装 @deepseek-ai/dsh@next（全局）…"
   warn "⚠️  安装期间请勿中断（Ctrl-C / 关终端都会损坏全局依赖树，所有 profile 全崩）"
 
@@ -127,15 +139,26 @@ if [ -z "$DSH_BIN" ]; then
 
   # 全局前缀可写性检查（npm prefix 目录）
   NPM_PREFIX="$(npm prefix -g)"
+  # 先卸载再安装（禁令 9：禁止在已有安装上增量重装；--force 兜底残余）
   if [ -w "$NPM_PREFIX" ]; then
-    npm install -g "@deepseek-ai/dsh@next"
+    npm uninstall -g "@deepseek-ai/dsh" >/dev/null 2>&1 || true
+    npm install -g --force "@deepseek-ai/dsh@next"
   else
     warn "全局 npm 目录 $NPM_PREFIX 不可写，尝试 sudo…"
-    sudo npm install -g "@deepseek-ai/dsh@next"
+    sudo npm uninstall -g "@deepseek-ai/dsh" >/dev/null 2>&1 || true
+    sudo npm install -g --force "@deepseek-ai/dsh@next"
   fi
+  # 验证：优先 PATH/常见路径，其次 npm 全局目录（PATH 可能不含）
   DSH_BIN="$(command -v dsh 2>/dev/null || true)"
+  if [ -z "$DSH_BIN" ]; then
+    for c in "$HOME_DIR/.local/bin/dsh" /usr/local/bin/dsh /usr/bin/dsh; do
+      [ -x "$c" ] && DSH_BIN="$c" && break
+    done
+  fi
+  if [ -z "$DSH_BIN" ] && [ -x "$NPM_PREFIX/bin/dsh" ]; then DSH_BIN="$NPM_PREFIX/bin/dsh"; fi
   if [ -z "$DSH_BIN" ] || ! "$DSH_BIN" --version >/dev/null 2>&1; then
-    fail "dsh 安装失败或依赖树不完整。请勿中断安装；必要时执行：npm install -g @deepseek-ai/dsh@next --force"
+    fail "dsh 安装失败或依赖树不完整。请勿中断安装；必要时手动执行："
+    fail "  npm uninstall -g @deepseek-ai/dsh && npm install -g --force @deepseek-ai/dsh@next"
     exit 1
   fi
 fi
@@ -171,6 +194,22 @@ else
 fi
 
 # ---------- 4. 视觉插件 ----------
+# 探测 dsh 全局依赖树（与 scripts/deploy-plugin.sh 同逻辑）
+detect_dsh_dir() {
+  local bin="" real dir
+  bin="$(command -v dsh 2>/dev/null || true)"
+  if [ -z "$bin" ]; then
+    for c in "$HOME_DIR/.local/bin/dsh" /usr/local/bin/dsh /usr/bin/dsh; do
+      [ -x "$c" ] && bin="$c" && break
+    done
+  fi
+  if [ -z "$bin" ]; then echo ""; return; fi
+  real="$(readlink -f "$bin" 2>/dev/null || echo "$bin")"
+  dir="$(dirname "$(dirname "$real")")"
+  if [ -d "$dir/node_modules" ]; then echo "$dir/node_modules"; else echo "$dir"; fi
+}
+GLOBAL_DSH_NM="$(detect_dsh_dir)"
+
 if [ "$INSTALL_PLUGIN" -eq 1 ]; then
   log "挂载视觉助手插件（dsh-plugin-vision）…"
   if [ ! -f "$HOME_DIR/.dsh/profiles/web/package.json" ]; then
@@ -180,7 +219,31 @@ if [ "$INSTALL_PLUGIN" -eq 1 ]; then
   if ./scripts/deploy-plugin.sh web; then
     ok "插件已挂载到 web profile（重启 DSH Desktop 后生效）"
   else
-    warn "插件挂载被跳过：可能引擎正在运行。退出应用后重跑：./install.sh --no-build"
+    # 禁令 10：deploy 失败时必须保证 profile 自洽——区分两种失败：
+    #   a) 引擎在跑（实体完好，声明保留，提示重跑）
+    #   b) 实体缺失（dsh 重装清了全局树）→ 移除 bundles 声明，否则引擎 boot 失败
+    MANIFEST="$HOME_DIR/.dsh/profiles/web/package.json"
+    if [ -f "$MANIFEST" ] && grep -q 'dsh-plugin-vision' "$MANIFEST"; then
+      if [ -z "$GLOBAL_DSH_NM" ] || [ ! -d "$GLOBAL_DSH_NM/dsh-plugin-vision" ]; then
+        warn "检测到半挂状态：profile 声明了插件但全局树实体缺失（可能 dsh 重装清了实体）"
+        warn "从 profile bundles 移除声明以保持自洽…"
+        python3 - "$MANIFEST" <<'PY'
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p))
+d.setdefault('dsh', {}).setdefault('profile', {}).setdefault('bundles', [])
+before = len(d['dsh']['profile']['bundles'])
+d['dsh']['profile']['bundles'] = [b for b in d['dsh']['profile']['bundles'] if b != 'dsh-plugin-vision']
+json.dump(d, open(p, 'w'), indent=2, ensure_ascii=False)
+print(f'bundles: {before} → {len(d["dsh"]["profile"]["bundles"])}（已移除 dsh-plugin-vision）')
+PY
+        warn "退出应用后重跑 ./install.sh 可重新挂载插件"
+      else
+        warn "插件挂载被跳过：可能引擎正在运行（实体完好，声明保留）。退出应用后重跑：./install.sh --no-build"
+      fi
+    else
+      warn "插件挂载被跳过：可能引擎正在运行。退出应用后重跑：./install.sh --no-build"
+    fi
   fi
 else
   log "跳过插件安装（--no-plugin）"
