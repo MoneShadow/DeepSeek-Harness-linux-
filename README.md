@@ -115,6 +115,18 @@ tests/                      # node:test 单元测试
 - 插件相关问题欢迎在[官方 Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 交流
 - 本仓库话题：`dsh-plugin`、`deepseek-harness`、`electron`、`linux`
 
+## 卸载
+
+```bash
+./install.sh --uninstall
+```
+
+移除：视觉插件挂载（web profile）、AppImage、桌面入口、图标缓存。
+**保留**：`~/.dsh`（会话数据/凭据/设置）、官方 dsh CLI、项目源码。
+如需全部清除：`rm -rf ~/.dsh && npm uninstall -g @deepseek-ai/dsh`。
+
+> 若应用正在运行，插件挂载不会被卸载（铁律），退出应用后重跑本命令即可。
+
 ## License
 
 [MIT](./LICENSE)

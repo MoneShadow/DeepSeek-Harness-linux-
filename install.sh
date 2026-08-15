@@ -14,6 +14,7 @@
 #   ./install.sh                 # 完整安装（推荐）
 #   ./install.sh --no-build      # 不打包 AppImage（仅依赖+插件）
 #   ./install.sh --no-plugin     # 不装视觉插件（仅依赖+构建）
+#   ./install.sh --uninstall     # 一键卸载（插件挂载/AppImage/桌面入口/图标）
 #   ./install.sh --help
 #
 # 注意：若 DSH Desktop 正在运行，插件安装步骤会跳过并给出提示，
@@ -29,12 +30,14 @@ cd "$SCRIPT_DIR"
 
 BUILD_APPIMAGE=1
 INSTALL_PLUGIN=1
+UNINSTALL=0
 for arg in "$@"; do
   case "$arg" in
     --no-build) BUILD_APPIMAGE=0 ;;
     --no-plugin) INSTALL_PLUGIN=0 ;;
+    --uninstall) UNINSTALL=1 ;;
     --help|-h)
-      sed -n '3,20p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '3,22p' "$0" | sed 's/^# \{0,1\}//'
       exit 0 ;;
     *) echo "未知参数: $arg（--help 查看用法）"; exit 1 ;;
   esac
@@ -48,6 +51,72 @@ fail() { printf '\033[1;31m ✗\033[0m %s\n' "$*"; }
 HOME_DIR="${HOME:-$(getent passwd "$(id -u)" | cut -d: -f6)}"
 APPS_DIR="$HOME_DIR/Applications"
 DESKTOP_FILE="$HOME_DIR/.local/share/applications/dsh-desktop.desktop"
+ICON_DIR="$HOME_DIR/.local/share/icons/hicolor"
+
+# ============================================================================
+# 一键卸载（--uninstall）
+# 卸载：插件挂载（web profile）、AppImage、桌面入口、图标缓存。
+# 保留：~/.dsh（会话数据/凭据/设置）、dsh CLI、项目源码。
+# ============================================================================
+if [ "$UNINSTALL" -eq 1 ]; then
+  log "卸载 DSH Desktop…"
+
+  # 1. 插件挂载（需 web profile 无引擎在跑——铁律）
+  MANIFEST="$HOME_DIR/.dsh/profiles/web/package.json"
+  if [ -f "$MANIFEST" ]; then
+    if pgrep -af "dsh --profile web " | grep -v bwrap | grep -v install.sh >/dev/null 2>&1; then
+      warn "检测到 web profile 引擎正在运行，跳过插件卸载（退出应用后重跑本命令）"
+    else
+      log "移除视觉插件挂载（web profile）…"
+      # 移除 bundles 声明 + dependencies 条目（保持 profile 自洽，禁令 10）
+      python3 - "$MANIFEST" <<'PY'
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p))
+d.setdefault('dsh', {}).setdefault('profile', {}).setdefault('bundles', [])
+d['dsh']['profile']['bundles'] = [b for b in d['dsh']['profile']['bundles'] if b != 'dsh-plugin-vision']
+d.setdefault('dependencies', {})
+d['dependencies'].pop('dsh-plugin-vision', None)
+json.dump(d, open(p, 'w'), indent=2, ensure_ascii=False)
+print(f"  bundles 移除 dsh-plugin-vision，当前: {d['dsh']['profile']['bundles']}")
+PY
+      # 删除 profile 软链与全局树实体
+      rm -f "$HOME_DIR/.dsh/profiles/web/node_modules/dsh-plugin-vision"
+      GLOBAL_NM="$(command -v dsh >/dev/null 2>&1 && { R="$(readlink -f "$(command -v dsh)")"; D="$(dirname "$(dirname "$R")")"; [ -d "$D/node_modules" ] && echo "$D/node_modules" || echo "$D"; } || true)"
+      if [ -n "$GLOBAL_NM" ]; then
+        rm -rf "$GLOBAL_NM/dsh-plugin-vision" 2>/dev/null || true
+      fi
+      ok "插件已卸载"
+    fi
+  fi
+
+  # 2. 桌面入口
+  if [ -f "$DESKTOP_FILE" ]; then
+    rm -f "$DESKTOP_FILE" && ok "桌面入口已移除"
+  fi
+
+  # 3. AppImage
+  if [ -f "$APPS_DIR/DSH-Desktop.AppImage" ]; then
+    rm -f "$APPS_DIR/DSH-Desktop.AppImage" && ok "AppImage 已移除"
+  fi
+
+  # 4. 图标缓存
+  if [ -d "$ICON_DIR" ]; then
+    find "$ICON_DIR" -name 'dsh-desktop.png' -delete 2>/dev/null || true
+    ok "图标缓存已清理"
+  fi
+
+  cat <<EOF
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ 卸载完成。以下内容**保留**（如需删除请手动）：
+   - 会话/凭据/设置：~/.dsh（rm -rf ~/.dsh 可全部清除）
+   - 官方 dsh CLI：npm uninstall -g @deepseek-ai/dsh
+   - 项目源码：当前目录
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EOF
+  exit 0
+fi
 
 # ---------- 1. 环境检查 ----------
 log "检查环境…"
