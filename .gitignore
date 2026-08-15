@@ -10,3 +10,6 @@ screenshots/
 ITERATION_CONTEXT.md
 HARD_RULES.md
 SESSION_MISTAKES_REVIEW.md
+
+# 粘贴转路径 e2e 测试产物
+.paste-test/

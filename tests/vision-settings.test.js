@@ -92,6 +92,18 @@ test('磁盘读写: 原子写 + 读回 + 保留其他 section', () => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+test('autoPath 默认开启且可持久化', () => {
+  const cfg = parseVisionSection('');
+  assert.equal(cfg.autoPath, true);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vision-autopath-'));
+  const file = path.join(dir, 'settings.yaml');
+  writeVisionSettings({ autoPath: false }, file);
+  assert.equal(readVisionSettings(file).autoPath, false);
+  writeVisionSettings({ autoPath: true }, file);
+  assert.equal(readVisionSettings(file).autoPath, true);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test('磁盘读写: 文件不存在时新建', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vision-settings-'));
   const file = path.join(dir, 'settings.yaml');

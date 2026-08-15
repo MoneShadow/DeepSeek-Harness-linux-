@@ -23,6 +23,7 @@ export const inject = ['tools'];
 /** 视觉辅助设置（同时用于工具行 config 校验与 settings namespace schema） */
 export const VisionSettingsSchema = z.object({
   enabled: z.boolean().default(true).description('视觉辅助总开关：关闭后 vision_describe 会提示主模型引导用户开启'),
+  autoPath: z.boolean().default(true).description('桌面端粘贴图片自动转为图片路径（替代官方附件，适配无视觉模型；由 DSH Desktop 注入实现）'),
   baseURL: z.string().default('https://api.openai.com/v1').description('OpenAI 兼容接口地址（如 OpenAI / 通义千问 / 智谱 / SiliconFlow 等，含 /v1）'),
   apiKey: z.string().role('secret').default('').description('视觉模型 API 密钥（write-only，不会回显）'),
   model: z.string().default('gpt-4o-mini').description('视觉模型名（如 gpt-4o-mini / qwen-vl-max / glm-4v）'),

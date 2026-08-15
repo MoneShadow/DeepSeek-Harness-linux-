@@ -30,6 +30,9 @@ contextBridge.exposeInMainWorld('dshDesktop', {
   // 剪贴板兜底（iframe 复制失败时主进程写入）
   writeClipboard: (text) => ipcRenderer.invoke('clipboard:write', text),
 
+  // 粘贴图片自动转路径（iframe 补丁 → 父页面 → 主进程存盘）
+  savePastedImage: (payload) => ipcRenderer.invoke('vision:save-pasted-image', payload),
+
   // 视觉助手配置（写入 ~/.dsh/settings.yaml 的 vision 段，引擎热更新）
   getVisionConfig: () => ipcRenderer.invoke('vision:get-config'),
   setVisionConfig: (patch) => ipcRenderer.invoke('vision:set-config', patch),

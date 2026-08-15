@@ -338,7 +338,7 @@ function pollWebReady() {
         webReady = true;
         restartAttempts = 0; // 恢复成功，重置重启计数
         sendWebStatus('ready');
-        setTimeout(patchClipboardInFrames, 300); // iframe 加载后注入剪贴板补丁
+        setTimeout(() => { patchClipboardInFrames(); patchPasteInFrames(); }, 300); // iframe 加载后注入补丁
         return;
       }
       setTimeout(tick, 400);
@@ -388,7 +388,7 @@ function createWindow() {
   // iframe 每次导航（会话切换/重连）后重新注入剪贴板补丁
   win.webContents.on('frame-navigated', (_e, url, isMainFrame) => {
     if (!isMainFrame && url.startsWith('http://127.0.0.1')) {
-      setTimeout(patchClipboardInFrames, 200);
+      setTimeout(() => { patchClipboardInFrames(); patchPasteInFrames(); }, 200);
     }
   });
 
@@ -425,6 +425,122 @@ const { clipboard } = require('electron');
 ipcMain.handle('clipboard:write', (_e, text) => {
   try { clipboard.writeText(String(text ?? '')); return true; } catch { return false; }
 });
+
+// ============================================================================
+// 粘贴图片自动转路径（桌面端注入功能，受 vision.autoPath 开关控制）
+// 用户向官方 UI 输入框粘贴图片 → iframe 补丁拦截（阻止官方附件流程，避免
+// DeepSeek 文本模型的 UNSUPPORTED_CONTENT 报错）→ 图片 base64 经父页面 IPC
+// 存盘 → 返回真实路径 → 补丁自动插入输入框 → 主模型用 vision_describe 查看。
+// ============================================================================
+const PASTE_DIR = path.join(HOMEDIR, '.dsh', 'attachments', 'paste');
+ipcMain.handle('vision:save-pasted-image', (_e, { data, name, mime }) => {
+  try {
+    // data 为 dataURL（data:image/png;base64,xxx）
+    const m = String(data || '').match(/^data:(image\/[a-z+.-]+);base64,(.+)$/);
+    if (!m) return { ok: false, error: '非法的图片数据' };
+    const ext = ({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif' }[String(mime || m[1])] || 'img');
+    fs.mkdirSync(PASTE_DIR, { recursive: true });
+    const file = path.join(PASTE_DIR, `${Date.now()}-${String(name || 'paste').replace(/[^\w.-]/g, '_') || 'image'}.${ext}`);
+    fs.writeFileSync(file, Buffer.from(m[2], 'base64'));
+    ringLog('vision', `粘贴图片已存盘：${file}`);
+    return { ok: true, path: file };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+// iframe 注入：监听 paste 检测图片 → 拦截 → 存盘 → 路径插入输入框
+const PASTE_PATCH_SRC = `(() => {
+  if (window.__dshPastePatched) return;
+  const PENDING = new Map(); // requestId → 等待插入的图片信息
+
+  // 在输入框光标处插入文本（contenteditable / textarea 兼容）
+  const insertText = (target, text) => {
+    try {
+      if (target.isContentEditable) {
+        target.focus();
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+          const range = sel.getRangeAt(0);
+          range.deleteContents();
+          const node = document.createTextNode(text);
+          range.insertNode(node);
+          range.setStartAfter(node);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        } else { target.appendChild(document.createTextNode(text)); }
+        target.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+      } else if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') {
+        const s = target.selectionStart ?? target.value.length;
+        target.value = target.value.slice(0, s) + text + target.value.slice(target.selectionEnd ?? s);
+        target.selectionStart = target.selectionEnd = s + text.length;
+        target.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+      }
+    } catch { /* ignore */ }
+  };
+
+  // 找输入框：官方 UI 的 composer（contenteditable 优先，其次 textarea）
+  const findComposer = () => {
+    const el = document.activeElement;
+    if (el && (el.isContentEditable || el.tagName === 'TEXTAREA')) return el;
+    const editable = document.querySelector('[contenteditable="true"]');
+    if (editable) return editable;
+    return document.querySelector('textarea');
+  };
+
+  // 收父页面回传的路径 → 插入输入框
+  window.addEventListener('message', (e) => {
+    const d = e.data;
+    if (!d || d.type !== 'dsh-paste-image-result') return;
+    const pending = PENDING.get(d.requestId);
+    if (!pending) return;
+    PENDING.delete(d.requestId);
+    if (!d.ok) return;
+    const text = pending.isEditable ? '\\n' : '';
+    insertText(pending.target, \`[图片] \${d.path}\${text}\`);
+  });
+
+  document.addEventListener('paste', (e) => {
+    const files = e.clipboardData && e.clipboardData.files;
+    if (!files || files.length === 0) return;
+    const images = Array.from(files).filter((f) => f.type && f.type.startsWith('image/'));
+    if (images.length === 0) return;
+    // 拦截官方附件流程（DeepSeek 文本模型不支持 image block，会 UNSUPPORTED_CONTENT）
+    e.preventDefault();
+    e.stopPropagation();
+    const target = findComposer();
+    if (!target) return;
+    for (const img of images) {
+      const requestId = 'p' + Date.now() + Math.random().toString(36).slice(2, 8);
+      PENDING.set(requestId, { target, isEditable: target.isContentEditable });
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          window.parent.postMessage({
+            type: 'dsh-paste-image', requestId,
+            data: reader.result, name: img.name || 'image', mime: img.type,
+          }, '*');
+        } catch { /* ignore */ }
+      };
+      reader.readAsDataURL(img);
+    }
+  });
+  window.__dshPastePatched = true;
+})();`;
+
+/** 对官方 UI iframe 注入粘贴转路径补丁（受 vision.autoPath 开关控制，幂等）。 */
+function patchPasteInFrames() {
+  if (!win || win.isDestroyed()) return;
+  if (!readVisionSettings().autoPath) return; // 开关关闭则不注入
+  let frames = [];
+  try { frames = win.webContents.mainFrame.frames; } catch { return; }
+  for (const f of frames) {
+    if (f.url.startsWith('http://127.0.0.1')) {
+      f.executeJavaScript(PASTE_PATCH_SRC).catch(() => { /* 帧可能已销毁 */ });
+    }
+  }
+}
 
 // ============================================================================
 // 官方 UI iframe 剪贴板补丁（不魔改官方代码，仅兼容层增强）

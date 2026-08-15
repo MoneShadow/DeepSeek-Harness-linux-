@@ -138,6 +138,7 @@
   function loadVisionConfig() {
     api.getVisionConfig().then((cfg) => {
       $('vision-enabled').checked = cfg.enabled !== false;
+      $('vision-autopath').checked = cfg.autoPath !== false;
       $('vision-baseurl').value = cfg.baseURL || '';
       $('vision-model').value = cfg.model || '';
       $('vision-timeout').value = cfg.timeoutMs || 60000;
@@ -150,6 +151,7 @@
   $('btn-save-vision').addEventListener('click', () => {
     const patch = {
       enabled: $('vision-enabled').checked,
+      autoPath: $('vision-autopath').checked,
       baseURL: $('vision-baseurl').value.trim(),
       model: $('vision-model').value.trim(),
       timeoutMs: Number($('vision-timeout').value) || 60000,
@@ -171,6 +173,18 @@
     if (e.data && e.data.type === 'dsh-clipboard-fallback' && typeof e.data.text === 'string') {
       api.writeClipboard(e.data.text);
     }
+  });
+
+  // ============ 粘贴图片自动转路径 ============
+  // iframe 补丁拦截到图片粘贴 → 这里存盘 → 把真实路径回传给 iframe 插入输入框
+  window.addEventListener('message', (e) => {
+    const d = e.data;
+    if (!d || d.type !== 'dsh-paste-image' || typeof d.data !== 'string') return;
+    api.savePastedImage({ data: d.data, name: d.name, mime: d.mime }).then((r) => {
+      try {
+        e.source.postMessage({ type: 'dsh-paste-image-result', requestId: d.requestId, ok: r.ok, path: r.path }, '*');
+      } catch { /* ignore */ }
+    });
   });
 
   // ============ 初始化 ============
