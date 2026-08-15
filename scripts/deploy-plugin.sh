@@ -89,11 +89,21 @@ rm -rf "$PROFILE_NM/$PLUGIN_NAME"   # 清掉 pnpm 旧副本（实体目录或旧
 ln -s "$DSH_NODE_MODULES/$PLUGIN_NAME" "$PROFILE_NM/$PLUGIN_NAME"
 
 # 3. 清除 pnpm 依赖副本（遮蔽 heal 层的元凶），让解析回落到 heal 软链
+#    ⚠️ 事故教训（2026-08-15）：若 profile 的 @deepseek-ai 是指向全局树的
+#    符号链接（单实例修复），rm -rf 会穿过软链删掉全局包（dsh-tools/
+#    schemastery/cosmokit），导致引擎 boot 失败。仅当 @deepseek-ai 是
+#    真实目录（pnpm 副本）时才清理。
 echo "==> 清除 pnpm 依赖副本（@deepseek-ai/{dsh-tools,schemastery,cosmokit}、@standard-schema）"
-for pkg in dsh-tools schemastery cosmokit; do
-  rm -rf "$PROFILE_NM/@deepseek-ai/$pkg"
-done
-rm -rf "$PROFILE_NM/@standard-schema"
+if [ -L "$PROFILE_NM/@deepseek-ai" ]; then
+  echo "==> @deepseek-ai 是指向全局树的符号链接，跳过副本清理（解析已回落全局）"
+elif [ -d "$PROFILE_NM/@deepseek-ai" ]; then
+  for pkg in dsh-tools schemastery cosmokit; do
+    rm -rf "$PROFILE_NM/@deepseek-ai/$pkg"
+  done
+  rm -rf "$PROFILE_NM/@standard-schema"
+else
+  echo "==> profile 无 @deepseek-ai 目录（解析走 heal 软链层），跳过副本清理"
+fi
 
 # 4. manifest：bundles 追加插件名；dependencies 移除 file: 条目
 echo "==> 更新 manifest bundles"

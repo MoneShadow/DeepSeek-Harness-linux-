@@ -80,8 +80,9 @@ d['dependencies'].pop('dsh-plugin-vision', None)
 json.dump(d, open(p, 'w'), indent=2, ensure_ascii=False)
 print(f"  bundles 移除 dsh-plugin-vision，当前: {d['dsh']['profile']['bundles']}")
 PY
-      # 删除 profile 软链与全局树实体
-      rm -f "$HOME_DIR/.dsh/profiles/web/node_modules/dsh-plugin-vision"
+      # 删除 profile 实体（pnpm file: 安装可能是真实目录或软链，rm -rf 两者皆可）
+      rm -rf "$HOME_DIR/.dsh/profiles/web/node_modules/dsh-plugin-vision" 2>/dev/null || \
+        warn "未能删除 $HOME_DIR/.dsh/profiles/web/node_modules/dsh-plugin-vision（可手动 rm -rf）"
       GLOBAL_NM="$(command -v dsh >/dev/null 2>&1 && { R="$(readlink -f "$(command -v dsh)")"; D="$(dirname "$(dirname "$R")")"; [ -d "$D/node_modules" ] && echo "$D/node_modules" || echo "$D"; } || true)"
       if [ -n "$GLOBAL_NM" ]; then
         rm -rf "$GLOBAL_NM/dsh-plugin-vision" 2>/dev/null || true

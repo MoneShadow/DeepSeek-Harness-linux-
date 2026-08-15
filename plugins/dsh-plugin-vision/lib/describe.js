@@ -9,6 +9,20 @@ import { readFile } from 'node:fs/promises';
 import { extname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+/** 按文件头 magic bytes 嗅探 MIME（无扩展名文件兜底，如附件内容寻址存储）。 */
+export function sniffImageMime(buf) {
+  if (!buf || buf.length < 3) return null;
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return 'image/png';
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg';
+  if (buf.length >= 12 && buf.toString('latin1', 0, 4) === 'RIFF' && buf.toString('latin1', 8, 12) === 'WEBP') return 'image/webp';
+  if (buf.length >= 6) {
+    const head = buf.toString('latin1', 0, 6);
+    if (head === 'GIF87a' || head === 'GIF89a') return 'image/gif';
+  }
+  if (buf.length >= 2 && buf[0] === 0x42 && buf[1] === 0x4d) return 'image/bmp';
+  return null;
+}
+
 /** 图片源 → data URL 或直接返回 http(s) URL。 */
 export async function imageSourceToUrl(source, { maxBytes = 10 * 1024 * 1024 } = {}) {
   const s = String(source).trim();
@@ -20,12 +34,12 @@ export async function imageSourceToUrl(source, { maxBytes = 10 * 1024 * 1024 } =
   if (buf.length > maxBytes) {
     throw new Error(`图片 ${filePath} 大小 ${buf.length} 字节超过上限 ${maxBytes}`);
   }
-  const ext = extname(filePath).toLowerCase().replace('.', '') || 'png';
-  // 常见 MIME 映射；其余按 octet-stream（多数服务端能嗅探）
+  const ext = extname(filePath).toLowerCase().replace('.', '');
+  // 扩展名映射优先，无扩展名/未知扩展名时按内容嗅探（内容寻址存储的附件无扩展名）
   const mime = {
     png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
     gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp',
-  }[ext] || 'application/octet-stream';
+  }[ext] || sniffImageMime(buf) || 'application/octet-stream';
   return `data:${mime};base64,${buf.toString('base64')}`;
 }
 

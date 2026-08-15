@@ -14,6 +14,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools';
 import { settingsNamespace } from '@deepseek-ai/dsh-settings';
 import z from '@deepseek-ai/schemastery';
 import { describeImage } from './describe.js';
+import { collectImageRefs, renderAttachmentContext } from './attachments.js';
 
 export const name = 'vision';
 
@@ -41,6 +42,26 @@ export function apply(ctx, config) {
       VisionSettingsSchema,
       { base: config }
     );
+  });
+
+  // 动态上下文：每次模型请求渲染会话内的图片附件清单 + 可读路径。
+  // 用户上传/粘贴图片（官方附件机制）后，主模型无需用户提供路径即可看到
+  // "有哪些图片、路径在哪"，再调用 vision_describe 查看内容。
+  ctx.inject(['systemPrompt'], (promptCtx) => {
+    promptCtx.systemPrompt.context({
+      name: 'vision:attachments',
+      order: 95,
+      text: (context) => {
+        const session = context.agent?.session;
+        if (!session) return '';
+        try {
+          const refs = collectImageRefs(session.deriveMessages());
+          return renderAttachmentContext(refs);
+        } catch {
+          return '';
+        }
+      },
+    });
   });
 
   ctx.tools.register(defineTool({
