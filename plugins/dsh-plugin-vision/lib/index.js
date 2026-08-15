@@ -13,7 +13,8 @@
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { settingsNamespace } from '@deepseek-ai/dsh-settings';
 import z from '@deepseek-ai/schemastery';
-import { describeImage } from './describe.js';
+import { describeImageCached } from './describe.js';
+import { AnswerCache } from './cache.js';
 import { collectImageRefs, renderAttachmentContext, readVisionSettingsFromFile } from './attachments.js';
 
 export const name = 'vision';
@@ -28,12 +29,17 @@ export const VisionSettingsSchema = z.object({
   apiKey: z.string().role('secret').default('').description('视觉模型 API 密钥（write-only，不会回显）'),
   model: z.string().default('gpt-4o-mini').description('视觉模型名（如 gpt-4o-mini / qwen-vl-max / glm-4v）'),
   timeoutMs: z.number().default(60000).description('单次描述请求超时（毫秒）'),
+  cache: z.boolean().default(true).description('按图片内容哈希缓存描述结果（命中免重复请求，对主模型透明）'),
+  cacheTtlSeconds: z.number().default(3600).description('缓存有效期（秒）'),
+  cacheMaxEntries: z.number().default(200).description('缓存条目上限（超出按 LRU 淘汰最久未用）'),
 });
 
 /** 工具行运行时配置 schema（默认值层；用户配置走 settings namespace） */
 export const Config = VisionSettingsSchema;
 
 export function apply(ctx, config) {
+  // 引擎进程内的答案缓存（纯内存，TTL/LRU 上限随配置热更新；重启即清空）
+  const answerCache = new AnswerCache();
   // 注册 settings namespace：官方设置 UI 的"插件配置"区据此渲染 vision 卡片；
   // 行 config 作为 base 默认层，用户写入的 settings section 覆盖之
   let settingsScope = null;
@@ -69,7 +75,8 @@ export function apply(ctx, config) {
     name: 'vision_describe',
     description: 'Describe an image via the configured vision model (OpenAI-compatible API). ' +
       'Use this when you need to SEE an image — a local file path, file:// URL, or http(s) URL. ' +
-      'Returns the model\'s textual description of the image contents.',
+      'Returns the model\'s textual description of the image contents. ' +
+      'Answers are cached by image content hash (TTL configurable); repeated looks at the same image are served from cache without a new API call.',
     parameters: {
       image: {
         type: 'string',
@@ -97,10 +104,13 @@ export function apply(ctx, config) {
       if (!cfg.enabled) {
         return '视觉辅助已关闭：主模型没有视觉能力，如需查看图片请在 DSH Desktop 的 设置 → 插件配置 中开启 dsh-plugin-vision 的 enabled 开关（或直接告诉用户开启）。';
       }
-      return describeImage(cfg, {
+      // 缓存参数随配置热更新（读时生效，无需重建实例）
+      answerCache.ttlMs = (Number(cfg.cacheTtlSeconds) || 3600) * 1000;
+      answerCache.maxEntries = Number(cfg.cacheMaxEntries) || 200;
+      return describeImageCached(cfg, {
         image: args.image,
         prompt: args.prompt,
-      });
+      }, cfg.cache === false ? null : answerCache);
     },
   }));
 }

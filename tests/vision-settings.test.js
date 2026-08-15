@@ -104,6 +104,30 @@ test('autoPath 默认开启且可持久化', () => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+test('缓存字段: 默认开启 + 渲染持久化 + 非法值兜底', () => {
+  const cfg = parseVisionSection('');
+  assert.equal(cfg.cache, true);
+  assert.equal(cfg.cacheTtlSeconds, 3600);
+  assert.equal(cfg.cacheMaxEntries, 200);
+  // 关闭缓存并改 TTL/上限 → 写盘读回
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vision-cache-'));
+  const file = path.join(dir, 'settings.yaml');
+  writeVisionSettings({ cache: false, cacheTtlSeconds: 120, cacheMaxEntries: 50 }, file);
+  const text = fs.readFileSync(file, 'utf8');
+  assert.ok(text.includes('  cache: false'));
+  assert.ok(text.includes('  cacheTtlSeconds: 120'));
+  assert.ok(text.includes('  cacheMaxEntries: 50'));
+  const back = readVisionSettings(file);
+  assert.equal(back.cache, false);
+  assert.equal(back.cacheTtlSeconds, 120);
+  assert.equal(back.cacheMaxEntries, 50);
+  // 非法值回落默认
+  const bad = normalizeVisionConfig({ cacheTtlSeconds: 'abc', cacheMaxEntries: -1 });
+  assert.equal(bad.cacheTtlSeconds, 3600);
+  assert.equal(bad.cacheMaxEntries, 200);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test('磁盘读写: 文件不存在时新建', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vision-settings-'));
   const file = path.join(dir, 'settings.yaml');

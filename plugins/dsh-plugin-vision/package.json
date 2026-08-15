@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-vision",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Vision assist for DeepSeek Harness: lets the main model see images through an OpenAI-compatible vision API",
   "type": "module",
   "main": "lib/index.js",

@@ -85,6 +85,9 @@ vision:
   apiKey: ""                            # 视觉模型密钥
   model: gpt-4o-mini                    # 如 qwen-vl-max / glm-4v
   timeoutMs: 60000
+  cache: true                           # 按图片内容哈希缓存描述结果（命中免重复请求）
+  cacheTtlSeconds: 3600                 # 缓存有效期（秒）
+  cacheMaxEntries: 200                  # 缓存条目上限（LRU 淘汰）
 ```
 
 关闭 `enabled` 时工具仍注册，但调用返回引导提示，主模型会据此提醒用户开启。

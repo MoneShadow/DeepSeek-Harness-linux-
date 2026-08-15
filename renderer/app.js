@@ -139,9 +139,12 @@
     api.getVisionConfig().then((cfg) => {
       $('vision-enabled').checked = cfg.enabled !== false;
       $('vision-autopath').checked = cfg.autoPath !== false;
+      $('vision-cache').checked = cfg.cache !== false;
       $('vision-baseurl').value = cfg.baseURL || '';
       $('vision-model').value = cfg.model || '';
       $('vision-timeout').value = cfg.timeoutMs || 60000;
+      $('vision-cache-ttl').value = cfg.cacheTtlSeconds || 3600;
+      $('vision-cache-max').value = cfg.cacheMaxEntries || 200;
       visionKeySet = !!cfg.apiKey;
       $('vision-apikey').placeholder = visionKeySet ? '已设置（留空保持原值）' : 'sk-...';
       $('vision-apikey').value = '';
@@ -152,9 +155,12 @@
     const patch = {
       enabled: $('vision-enabled').checked,
       autoPath: $('vision-autopath').checked,
+      cache: $('vision-cache').checked,
       baseURL: $('vision-baseurl').value.trim(),
       model: $('vision-model').value.trim(),
       timeoutMs: Number($('vision-timeout').value) || 60000,
+      cacheTtlSeconds: Number($('vision-cache-ttl').value) || 3600,
+      cacheMaxEntries: Number($('vision-cache-max').value) || 200,
     };
     const key = $('vision-apikey').value.trim();
     if (key) patch.apiKey = key; // 留空 = 保持原值
