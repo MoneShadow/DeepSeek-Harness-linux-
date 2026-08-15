@@ -503,6 +503,10 @@ const PASTE_PATCH_SRC = `(() => {
     insertText(pending.target, \`[图片] \${d.path}\${text}\`);
   });
 
+  // 捕获阶段拦截：官方 UI 的粘贴监听器在 composer（目标阶段）先执行，
+  // document 冒泡阶段的 preventDefault 太晚（图片已被官方插入/上传）。
+  // 捕获阶段 document → 目标，先于任何目标监听器，配合 stopImmediatePropagation
+  // 彻底阻断官方图片处理。
   document.addEventListener('paste', (e) => {
     const files = e.clipboardData && e.clipboardData.files;
     if (!files || files.length === 0) return;
@@ -511,6 +515,7 @@ const PASTE_PATCH_SRC = `(() => {
     // 拦截官方附件流程（DeepSeek 文本模型不支持 image block，会 UNSUPPORTED_CONTENT）
     e.preventDefault();
     e.stopPropagation();
+    e.stopImmediatePropagation();
     const target = findComposer();
     if (!target) return;
     for (const img of images) {
@@ -527,7 +532,7 @@ const PASTE_PATCH_SRC = `(() => {
       };
       reader.readAsDataURL(img);
     }
-  });
+  }, true); // 捕获阶段：先于官方 composer 监听器执行
   window.__dshPastePatched = true;
 })();`;
 

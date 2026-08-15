@@ -64,6 +64,7 @@ const PASTE_PATCH_SRC = `(() => {
     if (images.length === 0) return;
     e.preventDefault();
     e.stopPropagation();
+    e.stopImmediatePropagation();
     const target = findComposer();
     if (!target) return;
     for (const img of images) {
@@ -77,7 +78,7 @@ const PASTE_PATCH_SRC = `(() => {
       };
       reader.readAsDataURL(img);
     }
-  });
+  }, true);
   window.__dshPastePatched = true;
 })();`;
 
@@ -88,7 +89,13 @@ fs.mkdirSync(SAVE_DIR, { recursive: true });
 const PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 fs.writeFileSync(path.join(TEST_DIR, 'frame.html'), `<!DOCTYPE html><html><body>
   <div contenteditable="true" id="composer"></div>
-  <script>${PASTE_PATCH_SRC}</script>
+  <script>
+    // 模拟官方 UI：composer 目标上的粘贴监听（图片会被官方插入/上传）
+    document.getElementById('composer').addEventListener('paste', (e) => {
+      window.__officialHandled = true;  // 官方处理器执行标记
+    });
+    ${PASTE_PATCH_SRC}
+  </script>
 </body></html>`);
 fs.writeFileSync(path.join(TEST_DIR, 'parent.html'), `<!DOCTYPE html><html><body>
   <iframe id="f" src="./frame.html"></iframe>
@@ -140,7 +147,11 @@ app.whenReady().then(() => {
       const composerText = await frame.executeJavaScript('document.getElementById("composer").textContent');
       console.log('PASTE prevented:', result.defaultPrevented);
       console.log('COMPOSER:', JSON.stringify(composerText));
-      const pass = result.defaultPrevented === true && composerText.includes('[图片]') && composerText.includes('.png');
+      const officialHandled = await frame.executeJavaScript('window.__officialHandled === true');
+      console.log('OFFICIAL handled:', officialHandled);
+      const pass = result.defaultPrevented === true
+        && composerText.includes('[图片]') && composerText.includes('.png')
+        && officialHandled === false;
       console.log(pass ? 'PASS' : 'FAIL');
       app.exit(pass ? 0 : 1);
     }, 1000);
