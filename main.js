@@ -338,7 +338,7 @@ function pollWebReady() {
         webReady = true;
         restartAttempts = 0; // 恢复成功，重置重启计数
         sendWebStatus('ready');
-        setTimeout(() => { patchClipboardInFrames(); patchPasteInFrames(); }, 300); // iframe 加载后注入补丁
+        setTimeout(() => { patchClipboardInFrames(); applyAutoPath(); }, 300); // iframe 加载后注入补丁（按开关）
         return;
       }
       setTimeout(tick, 400);
@@ -388,7 +388,7 @@ function createWindow() {
   // iframe 每次导航（会话切换/重连）后重新注入剪贴板补丁
   win.webContents.on('frame-navigated', (_e, url, isMainFrame) => {
     if (!isMainFrame && url.startsWith('http://127.0.0.1')) {
-      setTimeout(() => { patchClipboardInFrames(); patchPasteInFrames(); }, 200);
+      setTimeout(() => { patchClipboardInFrames(); applyAutoPath(); }, 200);
     }
   });
 
@@ -491,8 +491,8 @@ const PASTE_PATCH_SRC = `(() => {
     return document.querySelector('textarea');
   };
 
-  // 收父页面回传的路径 → 插入输入框
-  window.addEventListener('message', (e) => {
+  // 收父页面回传的路径 → 插入输入框（保存引用以便撤销）
+  const msgHandler = (e) => {
     const d = e.data;
     if (!d || d.type !== 'dsh-paste-image-result') return;
     const pending = PENDING.get(d.requestId);
@@ -501,13 +501,15 @@ const PASTE_PATCH_SRC = `(() => {
     if (!d.ok) return;
     const text = pending.isEditable ? '\\n' : '';
     insertText(pending.target, \`[图片] \${d.path}\${text}\`);
-  });
+  };
+  window.addEventListener('message', msgHandler);
+  window.__dshPasteMessageListener = msgHandler;
 
   // 捕获阶段拦截：官方 UI 的粘贴监听器在 composer（目标阶段）先执行，
   // document 冒泡阶段的 preventDefault 太晚（图片已被官方插入/上传）。
   // 捕获阶段 document → 目标，先于任何目标监听器，配合 stopImmediatePropagation
-  // 彻底阻断官方图片处理。
-  document.addEventListener('paste', (e) => {
+  // 彻底阻断官方图片处理。（保存引用以便撤销）
+  const pasteHandler = (e) => {
     const files = e.clipboardData && e.clipboardData.files;
     if (!files || files.length === 0) return;
     const images = Array.from(files).filter((f) => f.type && f.type.startsWith('image/'));
@@ -532,14 +534,28 @@ const PASTE_PATCH_SRC = `(() => {
       };
       reader.readAsDataURL(img);
     }
-  }, true); // 捕获阶段：先于官方 composer 监听器执行
+  };
+  document.addEventListener('paste', pasteHandler, true); // 捕获阶段：先于官方 composer 监听器执行
+  window.__dshPasteListener = pasteHandler;
   window.__dshPastePatched = true;
 })();`;
 
-/** 对官方 UI iframe 注入粘贴转路径补丁（受 vision.autoPath 开关控制，幂等）。 */
+/** 撤销粘贴转路径补丁（开关关闭时注入，移除监听器恢复官方行为）。 */
+const UNPASTE_PATCH_SRC = `(() => {
+  if (window.__dshPasteListener) {
+    document.removeEventListener('paste', window.__dshPasteListener, true);
+    window.__dshPasteListener = null;
+  }
+  if (window.__dshPasteMessageListener) {
+    window.removeEventListener('message', window.__dshPasteMessageListener);
+    window.__dshPasteMessageListener = null;
+  }
+  window.__dshPastePatched = false;
+})();`;
+
+/** 对官方 UI iframe 注入粘贴转路径补丁（幂等）。 */
 function patchPasteInFrames() {
   if (!win || win.isDestroyed()) return;
-  if (!readVisionSettings().autoPath) return; // 开关关闭则不注入
   let frames = [];
   try { frames = win.webContents.mainFrame.frames; } catch { return; }
   for (const f of frames) {
@@ -548,6 +564,31 @@ function patchPasteInFrames() {
     }
   }
 }
+
+/** 撤销粘贴转路径补丁（幂等）。 */
+function unpatchPasteInFrames() {
+  if (!win || win.isDestroyed()) return;
+  let frames = [];
+  try { frames = win.webContents.mainFrame.frames; } catch { return; }
+  for (const f of frames) {
+    if (f.url.startsWith('http://127.0.0.1')) {
+      f.executeJavaScript(UNPASTE_PATCH_SRC).catch(() => { /* 帧可能已销毁 */ });
+    }
+  }
+}
+
+/** 按 vision.autoPath 开关即时注入/撤销补丁（热加载）。 */
+function applyAutoPath() {
+  if (!win || win.isDestroyed()) return;
+  if (readVisionSettings().autoPath) patchPasteInFrames();
+  else unpatchPasteInFrames();
+}
+
+// 监视 settings.yaml：面板保存或外部编辑都触发开关热加载（无需重启）
+const DSH_SETTINGS_YAML_PATH = path.join(HOMEDIR, '.dsh', 'settings.yaml');
+fs.watchFile(DSH_SETTINGS_YAML_PATH, { interval: 1500 }, () => {
+  try { applyAutoPath(); } catch { /* ignore */ }
+});
 
 // ============================================================================
 // 官方 UI iframe 剪贴板补丁（不魔改官方代码，仅兼容层增强）

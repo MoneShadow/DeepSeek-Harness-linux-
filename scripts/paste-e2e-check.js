@@ -48,7 +48,7 @@ const PASTE_PATCH_SRC = `(() => {
     if (editable) return editable;
     return document.querySelector('textarea');
   };
-  window.addEventListener('message', (e) => {
+  const msgHandler = (e) => {
     const d = e.data;
     if (!d || d.type !== 'dsh-paste-image-result') return;
     const pending = PENDING.get(d.requestId);
@@ -56,8 +56,10 @@ const PASTE_PATCH_SRC = `(() => {
     PENDING.delete(d.requestId);
     if (!d.ok) return;
     insertText(pending.target, '[图片] ' + d.path + '\\n');
-  });
-  document.addEventListener('paste', (e) => {
+  };
+  window.addEventListener('message', msgHandler);
+  window.__dshPasteMessageListener = msgHandler;
+  const pasteHandler = (e) => {
     const files = e.clipboardData && e.clipboardData.files;
     if (!files || files.length === 0) return;
     const images = Array.from(files).filter((f) => f.type && f.type.startsWith('image/'));
@@ -78,7 +80,9 @@ const PASTE_PATCH_SRC = `(() => {
       };
       reader.readAsDataURL(img);
     }
-  }, true);
+  };
+  document.addEventListener('paste', pasteHandler, true); // 捕获阶段：先于官方 composer 监听器执行
+  window.__dshPasteListener = pasteHandler;
   window.__dshPastePatched = true;
 })();`;
 
@@ -149,9 +153,43 @@ app.whenReady().then(() => {
       console.log('COMPOSER:', JSON.stringify(composerText));
       const officialHandled = await frame.executeJavaScript('window.__officialHandled === true');
       console.log('OFFICIAL handled:', officialHandled);
+
+      // ---- 热加载验证：撤销补丁后应恢复官方行为 ----
+      const UNPATCH = `(() => {
+        if (window.__dshPasteListener) {
+          document.removeEventListener('paste', window.__dshPasteListener, true);
+          window.__dshPasteListener = null;
+        }
+        if (window.__dshPasteMessageListener) {
+          window.removeEventListener('message', window.__dshPasteMessageListener);
+          window.__dshPasteMessageListener = null;
+        }
+        window.__dshPastePatched = false;
+      })();`;
+      await frame.executeJavaScript(UNPATCH);
+      // 再触发一次粘贴：官方处理器应执行（未被拦截）
+      await frame.executeJavaScript('window.__officialHandled = null; true;');
+      const result2 = await frame.executeJavaScript(`
+        (async () => {
+          const b64 = '${PNG_B64}';
+          const bin = atob(b64);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          const file = new File([bytes], 'after-unpatch.png', { type: 'image/png' });
+          const dt = new DataTransfer();
+          dt.items.add(file);
+          const ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+          document.getElementById('composer').dispatchEvent(ev);
+          return { defaultPrevented: ev.defaultPrevented };
+        })()
+      `);
+      const officialHandled2 = await frame.executeJavaScript('window.__officialHandled === true');
+      console.log('AFTER-UNPATCH prevented:', result2.defaultPrevented, 'official:', officialHandled2);
+
       const pass = result.defaultPrevented === true
         && composerText.includes('[图片]') && composerText.includes('.png')
-        && officialHandled === false;
+        && officialHandled === false
+        && officialHandled2 === true;  // 撤销后官方处理器恢复执行
       console.log(pass ? 'PASS' : 'FAIL');
       app.exit(pass ? 0 : 1);
     }, 1000);
