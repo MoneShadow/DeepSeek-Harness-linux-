@@ -1,7 +1,7 @@
 # dsh-plugin-vision（DSH Desktop 出厂内置快照）
 
 > 本目录为 DSH Desktop 出厂内置的插件快照。独立维护与开源地址：
-> **dsh-plugin-vision**（独立仓库，安装/配置/故障排查见其 README）。
+> **dsh-plugin-vision**（独立仓库：https://github.com/MoneShadow/dsh-plugin-vision ，安装/配置/故障排查见其 README）。
 >
 # dsh-plugin-vision
 
