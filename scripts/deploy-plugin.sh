@@ -8,13 +8,10 @@
 # TOOL_RUNTIME_SCHEDULER 分裂），任何工具调用都会崩：
 #   Cannot read properties of undefined (reading 'prepare')
 #
-# 本脚本采用正确挂载方式：
-#   1. 插件实体复制到全局 dsh 依赖树（与官方 bundle 同锚点，realpath 在全局树，
-#      其 import 的 dsh-tools/schemastery 与官方工具解析到同一实例）
-#   2. 目标 profile 的 node_modules 里建软链指向全局树实体
-#      （Loader 以 profile 为基准 import 包名，必须能在 profile 链上解析到）
-#   3. 清除 profile 里 pnpm 留下的依赖副本，让解析回落到 heal 软链层
-#   4. manifest 的 bundles 加名（dependencies 不写 file: 条目，杜绝 pnpm 重建副本）
+# 本脚本采用 profile 外置挂载方式：
+#   1. 插件实体复制到目标 profile 的 node_modules（官方 dsh 更新不会覆盖）
+#   2. 清除 profile 里 pnpm 留下的依赖副本，让解析回落到 heal 软链层
+#   3. manifest 的 bundles 加名（dependencies 不写 file: 条目，杜绝 pnpm 重建副本）
 #
 # 用法：./scripts/deploy-plugin.sh [profile] [插件源码目录]   # 默认 web / 本仓库 plugins/
 # 铁律：目标 profile 不能被任何引擎占用（先退出 DSH Desktop / 停掉相关引擎）！
@@ -65,28 +62,15 @@ if [ -n "$RUNNING" ]; then
   exit 1
 fi
 
-# 1. 插件实体 → 全局 dsh 依赖树（rsync 同步，含删除，保证与源码一致）
-#    dsh 装在系统目录（sudo npm install -g）时全局树不可写——自动用 sudo，
-#    并保留用户 HOME（sudo 默认把 HOME 指到 /root，profile 路径会错）
-echo "==> 同步插件到全局依赖树：$DSH_NODE_MODULES/$PLUGIN_NAME"
-if [ -w "$DSH_NODE_MODULES" ]; then
-  mkdir -p "$DSH_NODE_MODULES/$PLUGIN_NAME"
-  rsync -a --delete \
-    --exclude 'node_modules' --exclude '.git' --exclude 'tests' \
-    "$PLUGIN_SRC/" "$DSH_NODE_MODULES/$PLUGIN_NAME/"
-else
-  echo "==> 全局依赖树不可写（dsh 装在系统目录），改用 sudo…"
-  sudo env "HOME=$HOME_DIR" mkdir -p "$DSH_NODE_MODULES/$PLUGIN_NAME"
-  sudo env "HOME=$HOME_DIR" rsync -a --delete \
-    --exclude 'node_modules' --exclude '.git' --exclude 'tests' \
-    "$PLUGIN_SRC/" "$DSH_NODE_MODULES/$PLUGIN_NAME/"
-fi
-
-# 2. profile node_modules 软链 → 全局树实体
-echo "==> profile 软链：$PROFILE_NM/$PLUGIN_NAME"
+# 1. 插件实体 → profile node_modules（官方 dsh 更新不会覆盖此目录）。
+#    旧实现把插件放在 dsh 全局树，官方更新后会留下断链，导致引擎启动失败。
+echo "==> 同步插件到 profile：$PROFILE_NM/$PLUGIN_NAME"
 mkdir -p "$PROFILE_NM"
-rm -rf "$PROFILE_NM/$PLUGIN_NAME"   # 清掉 pnpm 旧副本（实体目录或旧软链）
-ln -s "$DSH_NODE_MODULES/$PLUGIN_NAME" "$PROFILE_NM/$PLUGIN_NAME"
+rm -rf "$PROFILE_NM/$PLUGIN_NAME"
+mkdir -p "$PROFILE_NM/$PLUGIN_NAME"
+rsync -a --delete \
+  --exclude 'node_modules' --exclude '.git' --exclude 'tests' \
+  "$PLUGIN_SRC/" "$PROFILE_NM/$PLUGIN_NAME/"
 
 # 3. 清除 pnpm 依赖副本（遮蔽 heal 层的元凶），让解析回落到 heal 软链
 #    ⚠️ 事故教训（2026-08-15）：若 profile 的 @deepseek-ai 是指向全局树的

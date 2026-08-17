@@ -84,7 +84,7 @@ npx electron-builder --linux AppImage   # 手动打包
 > ⚠️ 不要使用 `dsh plugin add file:` 安装本插件——它会向 profile 注入
 > `@deepseek-ai/dsh-tools` 依赖副本，与全局树形成双实例，导致工具调用崩溃
 > （`Cannot read properties of undefined (reading 'prepare')`）。
-> `deploy-plugin.sh` 采用正确挂载方式（全局树实体 + profile 软链 + 清副本）。
+> `deploy-plugin.sh` 将插件实体放在 profile 的 `node_modules` 中；官方 dsh 更新不会覆盖该目录。
 
 **配置**（设置面板或手动编辑 `~/.dsh/settings.yaml`）：
 

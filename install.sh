@@ -264,7 +264,7 @@ else
 fi
 
 # ---------- 4. 视觉插件 ----------
-# 探测 dsh 全局依赖树（与 scripts/deploy-plugin.sh 同逻辑）
+# 探测 dsh 全局依赖树（兼容旧安装的清理检查）
 detect_dsh_dir() {
   local bin="" real dir
   bin="$(command -v dsh 2>/dev/null || true)"
@@ -294,8 +294,8 @@ if [ "$INSTALL_PLUGIN" -eq 1 ]; then
     #   b) 实体缺失（dsh 重装清了全局树）→ 移除 bundles 声明，否则引擎 boot 失败
     MANIFEST="$HOME_DIR/.dsh/profiles/web/package.json"
     if [ -f "$MANIFEST" ] && grep -q 'dsh-plugin-vision' "$MANIFEST"; then
-      if [ -z "$GLOBAL_DSH_NM" ] || [ ! -d "$GLOBAL_DSH_NM/dsh-plugin-vision" ]; then
-        warn "检测到半挂状态：profile 声明了插件但全局树实体缺失（可能 dsh 重装清了实体）"
+      if [ ! -d "$HOME_DIR/.dsh/profiles/web/node_modules/dsh-plugin-vision" ]; then
+        warn "检测到半挂状态：profile 声明了插件但实体缺失"
         warn "从 profile bundles 移除声明以保持自洽…"
         python3 - "$MANIFEST" <<'PY'
 import json, sys
